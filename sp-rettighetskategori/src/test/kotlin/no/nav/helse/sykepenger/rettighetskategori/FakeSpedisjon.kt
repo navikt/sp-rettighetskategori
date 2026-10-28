@@ -35,33 +35,43 @@ internal class FakeSpedisjon {
             scope = "api://test.tbd.spedisjon/.default",
         )
 
+    private var feiler = false
+
+    fun feiler() {
+        feiler = true
+    }
+
     fun sendtSøknadArbeidsgiver(fødselsnummer: String): UUID =
-        lagre(
+        sendtSøknad(
             fødselsnummer = fødselsnummer,
             type = "sendt_søknad_arbeidsgiver",
-            søknad =
-                mapOf(
-                    "id" to UUID.randomUUID().toString(),
-                    "fnr" to fødselsnummer,
-                    "type" to "ARBEIDSTAKERE",
-                    "status" to "SENDT",
-                    "arbeidssituasjon" to "ARBEIDSTAKER",
-                    "arbeidsgiver" to mapOf("orgnummer" to "987654321"),
-                ),
+            arbeidssituasjon = "ARBEIDSTAKER",
+            felter = mapOf("arbeidsgiver" to mapOf("orgnummer" to "987654321")),
         )
 
     fun sendtSøknadSelvstendig(fødselsnummer: String): UUID =
-        lagre(
+        sendtSøknad(
             fødselsnummer = fødselsnummer,
             type = "sendt_søknad_selvstendig",
+            arbeidssituasjon = "SELVSTENDIG_NARINGSDRIVENDE",
+        )
+
+    fun sendtSøknad(
+        fødselsnummer: String,
+        type: String,
+        arbeidssituasjon: String,
+        felter: Map<String, Any> = emptyMap(),
+    ): UUID =
+        lagre(
+            fødselsnummer = fødselsnummer,
+            type = type,
             søknad =
                 mapOf(
                     "id" to UUID.randomUUID().toString(),
                     "fnr" to fødselsnummer,
-                    "type" to "SELVSTENDIGE_OG_FRILANSERE",
                     "status" to "SENDT",
-                    "arbeidssituasjon" to "SELVSTENDIG_NARINGSDRIVENDE",
-                ),
+                    "arbeidssituasjon" to arbeidssituasjon,
+                ) + felter,
         )
 
     private fun lagre(
@@ -84,6 +94,7 @@ internal class FakeSpedisjon {
 
     private fun hentMeldinger(request: HttpRequest): HttpResponse<String> {
         check(request.method() == "GET" && request.uri().path == "/api/meldinger") { "Uventet kall til Spedisjon: ${request.method()} ${request.uri()}" }
+        if (feiler) return MockHttpResponse("""{"detail":"Spedisjon er nede"}""", 503)
         val internDokumentIder =
             objectMapper
                 .readTree(request.bodyAsString())

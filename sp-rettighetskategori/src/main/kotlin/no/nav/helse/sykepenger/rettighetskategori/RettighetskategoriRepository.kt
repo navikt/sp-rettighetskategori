@@ -4,6 +4,7 @@ import kotliquery.Row
 import kotliquery.queryOf
 import kotliquery.sessionOf
 import org.intellij.lang.annotations.Language
+import java.time.LocalDate
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -43,6 +44,27 @@ internal class RettighetskategoriRepository(
         """
         return sessionOf(dataSource).use { session ->
             session.run(queryOf(sql, mapOf("id" to id)).map(::tilRettighetskategori).asSingle)
+        }
+    }
+
+    fun gjeldende(
+        fødselsnummer: String,
+        skjæringstidspunkt: LocalDate,
+    ): Rettighetskategori? {
+        @Language("PostgreSQL")
+        val sql = """
+            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader
+            FROM rettighetskategori
+            WHERE fødselsnummer = :fodselsnummer AND skjæringstidspunkt = :skjaeringstidspunkt
+            ORDER BY opprettet DESC
+            LIMIT 1
+        """
+        return sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf(sql, mapOf("fodselsnummer" to fødselsnummer, "skjaeringstidspunkt" to skjæringstidspunkt))
+                    .map(::tilRettighetskategori)
+                    .asSingle,
+            )
         }
     }
 

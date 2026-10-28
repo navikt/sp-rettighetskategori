@@ -12,6 +12,7 @@ import no.nav.sykepenger.libs.logging.loggError
 import no.nav.sykepenger.libs.logging.loggInfo
 import no.nav.sykepenger.libs.logging.medMdc
 import tools.jackson.databind.JsonNode
+import java.time.LocalDate
 import java.util.UUID
 
 internal class RettighetskategoriRiver(
@@ -48,19 +49,7 @@ internal class RettighetskategoriRiver(
         medMdc(MdcKey.IDENTITETSNUMMER to fødselsnummer) {
             loggInfo("Mottatt behov for $BEHOV", "skjæringstidspunkt" to skjæringstidspunkt.toString())
             try {
-                val yrkesaktiviteter = søknader.yrkesaktiviteter(søknadIder)
-                val hovedkategori =
-                    checkNotNull(Hovedkategori.avgjør(yrkesaktiviteter)) {
-                        "Fant ingen hovedkategori for yrkesaktivitetene $yrkesaktiviteter"
-                    }
-                val rettighetskategori =
-                    Rettighetskategori.automatisk(
-                        fødselsnummer = fødselsnummer,
-                        skjæringstidspunkt = skjæringstidspunkt,
-                        hovedkategori = hovedkategori,
-                        søknader = søknadIder,
-                    )
-                repository.lagre(rettighetskategori)
+                val rettighetskategori = avgjør(fødselsnummer, skjæringstidspunkt, søknadIder)
 
                 packet["@løsning"] =
                     mapOf(
@@ -86,6 +75,28 @@ internal class RettighetskategoriRiver(
                 )
             }
         }
+    }
+
+    private fun avgjør(
+        fødselsnummer: String,
+        skjæringstidspunkt: LocalDate,
+        søknadIder: List<UUID>,
+    ): Rettighetskategori {
+        val gjeldende = repository.gjeldende(fødselsnummer, skjæringstidspunkt)
+        if (gjeldende != null && gjeldende.søknader.toSet() == søknadIder.toSet()) return gjeldende
+
+        val yrkesaktiviteter = søknader.yrkesaktiviteter(søknadIder)
+        val hovedkategori =
+            checkNotNull(Hovedkategori.avgjør(yrkesaktiviteter)) {
+                "Fant ingen hovedkategori for yrkesaktivitetene $yrkesaktiviteter"
+            }
+        return Rettighetskategori
+            .automatisk(
+                fødselsnummer = fødselsnummer,
+                skjæringstidspunkt = skjæringstidspunkt,
+                hovedkategori = hovedkategori,
+                søknader = søknadIder,
+            ).also(repository::lagre)
     }
 
     private companion object {

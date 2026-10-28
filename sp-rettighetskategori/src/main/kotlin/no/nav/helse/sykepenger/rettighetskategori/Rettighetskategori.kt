@@ -12,6 +12,7 @@ internal enum class Yrkesaktivitet {
 internal enum class Hovedkategori {
     Arbeidstaker,
     SelvstendigNæringsdrivende,
+    ArbeidstakerOgSelvstendigNæringsdrivende,
     ;
 
     companion object {
@@ -19,6 +20,7 @@ internal enum class Hovedkategori {
             when (yrkesaktiviteter) {
                 setOf(Yrkesaktivitet.Arbeidstaker) -> Arbeidstaker
                 setOf(Yrkesaktivitet.SelvstendigNæringsdrivende) -> SelvstendigNæringsdrivende
+                setOf(Yrkesaktivitet.Arbeidstaker, Yrkesaktivitet.SelvstendigNæringsdrivende) -> ArbeidstakerOgSelvstendigNæringsdrivende
                 else -> null
             }
     }
@@ -28,6 +30,7 @@ internal enum class Kilde(
     val dbVerdi: String,
 ) {
     AUTOMATISK("automatisk"),
+    SAKSBEHANDLER("saksbehandler"),
     ;
 
     companion object {

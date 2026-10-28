@@ -17,10 +17,12 @@ internal class Søknader(
     }
 
     private fun HentMeldingResponse.yrkesaktivitet(): Yrkesaktivitet {
-        val arbeidssituasjon = objectMapper.readTree(jsonBody).path("arbeidssituasjon").asString()
+        val søknad = objectMapper.readTree(jsonBody)
+        val arbeidssituasjon = søknad.path("arbeidssituasjon").asString()
         return when {
             type in søknadstyperForArbeidstaker -> Yrkesaktivitet.Arbeidstaker
-            type == "sendt_søknad_selvstendig" && arbeidssituasjon == "SELVSTENDIG_NARINGSDRIVENDE" -> Yrkesaktivitet.SelvstendigNæringsdrivende
+            type == "sendt_søknad_arbeidsledig" && søknad.path("tidligereArbeidsgiverOrgnummer").isString -> Yrkesaktivitet.Arbeidstaker
+            type == "sendt_søknad_selvstendig" && arbeidssituasjon in arbeidssituasjonerForSelvstendig -> Yrkesaktivitet.SelvstendigNæringsdrivende
             else -> error("Søknad $internDokumentId av type $type med arbeidssituasjon $arbeidssituasjon gir ingen støttet yrkesaktivitet")
         }
     }
@@ -28,5 +30,6 @@ internal class Søknader(
     private companion object {
         val objectMapper = jacksonObjectMapper()
         val søknadstyperForArbeidstaker = setOf("sendt_søknad_arbeidsgiver", "sendt_søknad_nav")
+        val arbeidssituasjonerForSelvstendig = setOf("SELVSTENDIG_NARINGSDRIVENDE", "FISKER", "JORDBRUKER", "BARNEPASSER", "ANNET")
     }
 }

@@ -5,8 +5,11 @@ import kotliquery.queryOf
 import kotliquery.sessionOf
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -62,6 +65,193 @@ internal class RettighetskategoriRiverTest {
         assertEquals(listOf(søknad), lagret.søknader)
     }
 
+    @ParameterizedTest(name = "{0} med arbeidssituasjon {1} gir {2}")
+    @CsvSource(
+        "sendt_søknad_arbeidsgiver, ARBEIDSTAKER, Arbeidstaker",
+        "sendt_søknad_nav, ARBEIDSTAKER, Arbeidstaker",
+        "sendt_søknad_selvstendig, SELVSTENDIG_NARINGSDRIVENDE, SelvstendigNæringsdrivende",
+        "sendt_søknad_selvstendig, FISKER, SelvstendigNæringsdrivende",
+        "sendt_søknad_selvstendig, JORDBRUKER, SelvstendigNæringsdrivende",
+        "sendt_søknad_selvstendig, BARNEPASSER, SelvstendigNæringsdrivende",
+        "sendt_søknad_selvstendig, ANNET, SelvstendigNæringsdrivende",
+    )
+    fun `søknadstypen og arbeidssituasjonen gir hovedkategorien`(
+        type: String,
+        arbeidssituasjon: String,
+        hovedkategori: String,
+    ) {
+        val søknad = spedisjon.sendtSøknad(FØDSELSNUMMER, type, arbeidssituasjon)
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        assertEquals(
+            hovedkategori,
+            rapid.inspektør
+                .message(0)
+                .løsning()
+                .path("hovedkategori")
+                .asString(),
+        )
+    }
+
+    @Test
+    fun `søknad fra arbeidsledig med tidligere arbeidsgiver gir hovedkategorien Arbeidstaker`() {
+        val søknad =
+            spedisjon.sendtSøknad(
+                fødselsnummer = FØDSELSNUMMER,
+                type = "sendt_søknad_arbeidsledig",
+                arbeidssituasjon = "ARBEIDSLEDIG",
+                felter = mapOf("tidligereArbeidsgiverOrgnummer" to "987654321"),
+            )
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        assertEquals(
+            "Arbeidstaker",
+            rapid.inspektør
+                .message(0)
+                .løsning()
+                .path("hovedkategori")
+                .asString(),
+        )
+    }
+
+    @Test
+    fun `tjenesten ser ikke på andre inntektskilder`() {
+        val søknad =
+            spedisjon.sendtSøknad(
+                fødselsnummer = FØDSELSNUMMER,
+                type = "sendt_søknad_nav",
+                arbeidssituasjon = "ARBEIDSTAKER",
+                felter = mapOf("andreInntektskilder" to listOf(mapOf("type" to "SELVSTENDIG_NARINGSDRIVENDE", "sykmeldt" to true))),
+            )
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        assertEquals(
+            "Arbeidstaker",
+            rapid.inspektør
+                .message(0)
+                .løsning()
+                .path("hovedkategori")
+                .asString(),
+        )
+    }
+
+    @ParameterizedTest(name = "{0} med arbeidssituasjon {1} gir ubesvart behov")
+    @CsvSource(
+        "sendt_søknad_frilans, FRILANSER",
+        "sendt_søknad_arbeidsledig, ARBEIDSLEDIG",
+        "sendt_søknad_selvstendig, FRILANSER",
+    )
+    fun `søknad fra en annen yrkesaktivitet gir ubesvart behov`(
+        type: String,
+        arbeidssituasjon: String,
+    ) {
+        val søknad = spedisjon.sendtSøknad(FØDSELSNUMMER, type, arbeidssituasjon)
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        assertEquals(0, rapid.inspektør.size)
+        assertEquals(emptyList<Rad>(), lagredeRader())
+    }
+
+    @Test
+    fun `søknader fra arbeidstaker og selvstendig næringsdrivende gir hovedkategorien Arbeidstaker og selvstendig næringsdrivende`() {
+        val arbeidstaker = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        val selvstendig = spedisjon.sendtSøknad(FØDSELSNUMMER, "sendt_søknad_selvstendig", "FISKER")
+
+        rapid.sendTestMessage(rettighetskategoriBehov(arbeidstaker, selvstendig), FØDSELSNUMMER)
+
+        val løsning = rapid.inspektør.message(0).løsning()
+        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", løsning.path("hovedkategori").asString())
+        val lagret = lagredeRader().single()
+        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", lagret.hovedkategori)
+        assertEquals(listOf(arbeidstaker, selvstendig), lagret.søknader)
+    }
+
+    @Test
+    fun `annen yrkesaktivitet sammen med arbeidstaker gir ubesvart behov`() {
+        val arbeidstaker = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        val frilans = spedisjon.sendtSøknad(FØDSELSNUMMER, "sendt_søknad_frilans", "FRILANSER")
+
+        rapid.sendTestMessage(rettighetskategoriBehov(arbeidstaker, frilans), FØDSELSNUMMER)
+
+        assertEquals(0, rapid.inspektør.size)
+    }
+
+    @Test
+    fun `samme søknadssett gir gjeldende ID og hovedkategori uten ny rad`() {
+        val arbeidstaker = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        val selvstendig = spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER)
+
+        rapid.sendTestMessage(rettighetskategoriBehov(arbeidstaker, selvstendig), FØDSELSNUMMER)
+        rapid.sendTestMessage(rettighetskategoriBehov(selvstendig, arbeidstaker), FØDSELSNUMMER)
+
+        assertEquals(2, rapid.inspektør.size)
+        val første = rapid.inspektør.message(0).løsning()
+        val andre = rapid.inspektør.message(1).løsning()
+        assertEquals(første.path("id").asString(), andre.path("id").asString())
+        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", andre.path("hovedkategori").asString())
+        assertEquals(1, lagredeRader().size)
+    }
+
+    @Test
+    fun `endret søknadssett gir en ny automatisk avgjørelse med ny ID`() {
+        val første = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        val korrigert = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        val selvstendig = spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER)
+
+        rapid.sendTestMessage(rettighetskategoriBehov(første), FØDSELSNUMMER)
+        rapid.sendTestMessage(rettighetskategoriBehov(korrigert, selvstendig), FØDSELSNUMMER)
+
+        val førsteId =
+            UUID.fromString(
+                rapid.inspektør
+                    .message(0)
+                    .løsning()
+                    .path("id")
+                    .asString(),
+            )
+        val andreLøsning = rapid.inspektør.message(1).løsning()
+        val andreId = UUID.fromString(andreLøsning.path("id").asString())
+        assertNotEquals(førsteId, andreId)
+        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", andreLøsning.path("hovedkategori").asString())
+        assertEquals(
+            listOf(
+                Triple(førsteId, "automatisk", listOf(første)),
+                Triple(andreId, "automatisk", listOf(korrigert, selvstendig)),
+            ),
+            lagredeRader().map { Triple(it.id, it.kilde, it.søknader) },
+        )
+    }
+
+    @Test
+    fun `avgjørelse fra saksbehandler overskrives ikke av en automatisk avgjørelse for samme søknadssett`() {
+        val søknad = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+        val overstyring = UUID.randomUUID()
+        lagreAvgjørelseFraSaksbehandler(overstyring, "SelvstendigNæringsdrivende", listOf(søknad))
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        val løsning = rapid.inspektør.message(1).løsning()
+        assertEquals(overstyring.toString(), løsning.path("id").asString())
+        assertEquals("SelvstendigNæringsdrivende", løsning.path("hovedkategori").asString())
+        assertEquals(2, lagredeRader().size)
+    }
+
+    @Test
+    fun `Spedisjon-feil gir ubesvart behov`() {
+        val søknad = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
+        spedisjon.feiler()
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        assertEquals(0, rapid.inspektør.size)
+        assertEquals(emptyList<Rad>(), lagredeRader())
+    }
+
     @Test
     fun `søknad som Spedisjon ikke har, gir ubesvart behov`() {
         rapid.sendTestMessage(rettighetskategoriBehov(UUID.randomUUID()), FØDSELSNUMMER)
@@ -93,6 +283,30 @@ internal class RettighetskategoriRiverTest {
         val kilde: String,
         val søknader: List<UUID>,
     )
+
+    private fun lagreAvgjørelseFraSaksbehandler(
+        id: UUID,
+        hovedkategori: String,
+        søknader: List<UUID>,
+    ) {
+        sessionOf(TestDatabase.dataSource).use { session ->
+            session.run(
+                queryOf(
+                    """
+                    INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader)
+                    VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, 'saksbehandler', now(), :soknader)
+                    """,
+                    mapOf(
+                        "id" to id,
+                        "fodselsnummer" to FØDSELSNUMMER,
+                        "skjaeringstidspunkt" to SKJÆRINGSTIDSPUNKT,
+                        "hovedkategori" to hovedkategori,
+                        "soknader" to session.createArrayOf("uuid", søknader),
+                    ),
+                ).asUpdate,
+            )
+        }
+    }
 
     private fun lagredeRader(): List<Rad> =
         sessionOf(TestDatabase.dataSource).use { session ->
