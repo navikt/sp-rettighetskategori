@@ -10,17 +10,17 @@ internal enum class Yrkesaktivitet {
 }
 
 internal enum class Hovedkategori {
-    Arbeidstaker,
-    SelvstendigNæringsdrivende,
-    ArbeidstakerOgSelvstendigNæringsdrivende,
+    ARBEIDSTAKER,
+    SELVSTENDIG_NÆRINGSDRIVENDE,
+    ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE,
     ;
 
     companion object {
         fun avgjør(yrkesaktiviteter: Set<Yrkesaktivitet>): Hovedkategori? =
             when (yrkesaktiviteter) {
-                setOf(Yrkesaktivitet.Arbeidstaker) -> Arbeidstaker
-                setOf(Yrkesaktivitet.SelvstendigNæringsdrivende) -> SelvstendigNæringsdrivende
-                setOf(Yrkesaktivitet.Arbeidstaker, Yrkesaktivitet.SelvstendigNæringsdrivende) -> ArbeidstakerOgSelvstendigNæringsdrivende
+                setOf(Yrkesaktivitet.Arbeidstaker) -> ARBEIDSTAKER
+                setOf(Yrkesaktivitet.SelvstendigNæringsdrivende) -> SELVSTENDIG_NÆRINGSDRIVENDE
+                setOf(Yrkesaktivitet.Arbeidstaker, Yrkesaktivitet.SelvstendigNæringsdrivende) -> ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE
                 else -> null
             }
     }

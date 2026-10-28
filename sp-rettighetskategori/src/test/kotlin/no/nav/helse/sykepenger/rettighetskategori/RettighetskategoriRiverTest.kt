@@ -37,13 +37,13 @@ internal class RettighetskategoriRiverTest {
         assertEquals(1, rapid.inspektør.size)
         assertEquals(FØDSELSNUMMER, rapid.inspektør.key(0))
         val løsning = rapid.inspektør.message(0).løsning()
-        assertEquals("Arbeidstaker", løsning.path("hovedkategori").asString())
+        assertEquals("ARBEIDSTAKER", løsning.path("hovedkategori").asString())
         assertEquals(
             Rad(
                 id = UUID.fromString(løsning.path("id").asString()),
                 fødselsnummer = FØDSELSNUMMER,
                 skjæringstidspunkt = SKJÆRINGSTIDSPUNKT,
-                hovedkategori = "Arbeidstaker",
+                hovedkategori = "ARBEIDSTAKER",
                 kilde = "automatisk",
                 søknader = listOf(søknad),
             ),
@@ -58,22 +58,22 @@ internal class RettighetskategoriRiverTest {
         rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
 
         val løsning = rapid.inspektør.message(0).løsning()
-        assertEquals("SelvstendigNæringsdrivende", løsning.path("hovedkategori").asString())
+        assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", løsning.path("hovedkategori").asString())
         val lagret = lagredeRader().single()
         assertEquals(UUID.fromString(løsning.path("id").asString()), lagret.id)
-        assertEquals("SelvstendigNæringsdrivende", lagret.hovedkategori)
+        assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", lagret.hovedkategori)
         assertEquals(listOf(søknad), lagret.søknader)
     }
 
     @ParameterizedTest(name = "{0} med arbeidssituasjon {1} gir {2}")
     @CsvSource(
-        "sendt_søknad_arbeidsgiver, ARBEIDSTAKER, Arbeidstaker",
-        "sendt_søknad_nav, ARBEIDSTAKER, Arbeidstaker",
-        "sendt_søknad_selvstendig, SELVSTENDIG_NARINGSDRIVENDE, SelvstendigNæringsdrivende",
-        "sendt_søknad_selvstendig, FISKER, SelvstendigNæringsdrivende",
-        "sendt_søknad_selvstendig, JORDBRUKER, SelvstendigNæringsdrivende",
-        "sendt_søknad_selvstendig, BARNEPASSER, SelvstendigNæringsdrivende",
-        "sendt_søknad_selvstendig, ANNET, SelvstendigNæringsdrivende",
+        "sendt_søknad_arbeidsgiver, ARBEIDSTAKER, ARBEIDSTAKER",
+        "sendt_søknad_nav, ARBEIDSTAKER, ARBEIDSTAKER",
+        "sendt_søknad_selvstendig, SELVSTENDIG_NARINGSDRIVENDE, SELVSTENDIG_NÆRINGSDRIVENDE",
+        "sendt_søknad_selvstendig, FISKER, SELVSTENDIG_NÆRINGSDRIVENDE",
+        "sendt_søknad_selvstendig, JORDBRUKER, SELVSTENDIG_NÆRINGSDRIVENDE",
+        "sendt_søknad_selvstendig, BARNEPASSER, SELVSTENDIG_NÆRINGSDRIVENDE",
+        "sendt_søknad_selvstendig, ANNET, SELVSTENDIG_NÆRINGSDRIVENDE",
     )
     fun `søknadstypen og arbeidssituasjonen gir hovedkategorien`(
         type: String,
@@ -103,7 +103,7 @@ internal class RettighetskategoriRiverTest {
         rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
 
         assertEquals(
-            "Arbeidstaker",
+            "ARBEIDSTAKER",
             hovedkategoriILøsning(),
         )
     }
@@ -121,7 +121,7 @@ internal class RettighetskategoriRiverTest {
         rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
 
         assertEquals(
-            "Arbeidstaker",
+            "ARBEIDSTAKER",
             hovedkategoriILøsning(),
         )
     }
@@ -152,9 +152,9 @@ internal class RettighetskategoriRiverTest {
         rapid.sendTestMessage(rettighetskategoriBehov(arbeidstaker, selvstendig), FØDSELSNUMMER)
 
         val løsning = rapid.inspektør.message(0).løsning()
-        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", løsning.path("hovedkategori").asString())
+        assertEquals("ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE", løsning.path("hovedkategori").asString())
         val lagret = lagredeRader().single()
-        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", lagret.hovedkategori)
+        assertEquals("ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE", lagret.hovedkategori)
         assertEquals(listOf(arbeidstaker, selvstendig), lagret.søknader)
     }
 
@@ -180,7 +180,7 @@ internal class RettighetskategoriRiverTest {
         val første = rapid.inspektør.message(0).løsning()
         val andre = rapid.inspektør.message(1).løsning()
         assertEquals(første.path("id").asString(), andre.path("id").asString())
-        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", andre.path("hovedkategori").asString())
+        assertEquals("ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE", andre.path("hovedkategori").asString())
         assertEquals(1, lagredeRader().size)
     }
 
@@ -204,7 +204,7 @@ internal class RettighetskategoriRiverTest {
         val andreLøsning = rapid.inspektør.message(1).løsning()
         val andreId = UUID.fromString(andreLøsning.path("id").asString())
         assertNotEquals(førsteId, andreId)
-        assertEquals("ArbeidstakerOgSelvstendigNæringsdrivende", andreLøsning.path("hovedkategori").asString())
+        assertEquals("ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE", andreLøsning.path("hovedkategori").asString())
         assertEquals(
             listOf(
                 Triple(førsteId, "automatisk", listOf(første)),
@@ -219,13 +219,13 @@ internal class RettighetskategoriRiverTest {
         val søknad = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
         rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
         val overstyring = UUID.randomUUID()
-        lagreAvgjørelseFraSaksbehandler(overstyring, "SelvstendigNæringsdrivende", listOf(søknad))
+        lagreAvgjørelseFraSaksbehandler(overstyring, "SELVSTENDIG_NÆRINGSDRIVENDE", listOf(søknad))
 
         rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
 
         val løsning = rapid.inspektør.message(1).løsning()
         assertEquals(overstyring.toString(), løsning.path("id").asString())
-        assertEquals("SelvstendigNæringsdrivende", løsning.path("hovedkategori").asString())
+        assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", løsning.path("hovedkategori").asString())
         assertEquals(2, lagredeRader().size)
     }
 

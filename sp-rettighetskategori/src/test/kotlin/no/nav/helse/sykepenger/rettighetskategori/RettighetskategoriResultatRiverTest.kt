@@ -24,8 +24,8 @@ internal class RettighetskategoriResultatRiverTest {
         val arbeidstaker = avgjørRettighetskategori(spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER))
         val selvstendig = avgjørRettighetskategori(spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER))
 
-        assertEquals("Arbeidstaker", hovedkategoriFor(arbeidstaker))
-        assertEquals("SelvstendigNæringsdrivende", hovedkategoriFor(selvstendig))
+        assertEquals("ARBEIDSTAKER", hovedkategoriFor(arbeidstaker))
+        assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", hovedkategoriFor(selvstendig))
     }
 
     @Test
