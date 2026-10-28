@@ -61,7 +61,7 @@ internal class SlettPersonRiverTest {
                 queryOf(
                     """
                     INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, tidspunkt, søknader)
-                    VALUES (gen_random_uuid(), :fodselsnummer, '2018-01-01', 'Arbeidstaker', 'AUTOMATISK', now(), ARRAY[gen_random_uuid()])
+                    VALUES (gen_random_uuid(), :fodselsnummer, '2018-01-01', 'Arbeidstaker', 'automatisk', now(), ARRAY[gen_random_uuid()])
                     """,
                     mapOf("fodselsnummer" to fødselsnummer),
                 ).asUpdate,

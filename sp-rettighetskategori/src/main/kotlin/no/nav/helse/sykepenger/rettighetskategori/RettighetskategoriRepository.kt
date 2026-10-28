@@ -25,7 +25,7 @@ internal class RettighetskategoriRepository(
                         "fodselsnummer" to rettighetskategori.fødselsnummer,
                         "skjaeringstidspunkt" to rettighetskategori.skjæringstidspunkt,
                         "hovedkategori" to rettighetskategori.hovedkategori.name,
-                        "kilde" to rettighetskategori.kilde.name,
+                        "kilde" to rettighetskategori.kilde.dbVerdi,
                         "tidspunkt" to rettighetskategori.tidspunkt,
                         "soknader" to session.createArrayOf("uuid", rettighetskategori.søknader),
                     ),
@@ -52,7 +52,7 @@ internal class RettighetskategoriRepository(
             fødselsnummer = row.string("fødselsnummer"),
             skjæringstidspunkt = row.localDate("skjæringstidspunkt"),
             hovedkategori = Hovedkategori.valueOf(row.string("hovedkategori")),
-            kilde = Kilde.valueOf(row.string("kilde")),
+            kilde = Kilde.fraDbVerdi(row.string("kilde")),
             tidspunkt = row.instant("tidspunkt"),
             søknader = row.array<UUID>("søknader").toList(),
         )

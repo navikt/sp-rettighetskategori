@@ -41,7 +41,7 @@ internal class RettighetskategoriRiverTest {
                 fødselsnummer = FØDSELSNUMMER,
                 skjæringstidspunkt = SKJÆRINGSTIDSPUNKT,
                 hovedkategori = "Arbeidstaker",
-                kilde = "AUTOMATISK",
+                kilde = "automatisk",
                 søknader = listOf(søknad),
             ),
             lagredeRader().single(),

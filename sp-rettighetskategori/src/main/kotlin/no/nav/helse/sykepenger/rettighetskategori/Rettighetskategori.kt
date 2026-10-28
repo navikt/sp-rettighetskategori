@@ -24,8 +24,15 @@ internal enum class Hovedkategori {
     }
 }
 
-internal enum class Kilde {
-    AUTOMATISK,
+internal enum class Kilde(
+    val dbVerdi: String,
+) {
+    AUTOMATISK("automatisk"),
+    ;
+
+    companion object {
+        fun fraDbVerdi(dbVerdi: String) = entries.single { it.dbVerdi == dbVerdi }
+    }
 }
 
 internal data class Rettighetskategori(
