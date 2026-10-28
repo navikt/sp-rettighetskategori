@@ -7,9 +7,9 @@ spec:
   egress:
     - to:
         - ipBlock:
-            # Public IP-en til Cloud SQL-instansen sp-rettighetskategori. Finnes først etter at appen er deployet til dev.
+            # Public IP-en til Cloud SQL-instansen sp-rettighetskategori.
             # Slås opp med: kubectl get sqlinstance sp-rettighetskategori -n tbd -o jsonpath='{.status.publicIpAddress}'
-            cidr: TODO_SETT_INN_IP/32
+            cidr: 35.228.247.235/32
   podSelector:
     matchLabels:
       dbPolicyUser: sp-rettighetskategori-opprydding-dev

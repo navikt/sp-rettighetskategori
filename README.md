@@ -8,15 +8,6 @@ Skjelett for appen. Foreløpig kjører den på rapiden, svarer på ping, ekspone
 - `migreringer`: Flyway-migreringer for databasen.
 - `opprydding-dev`: sletter persondata i dev når det kommer `slett_person` på rapiden.
 
-## Før første deploy av opprydding-dev
-
-`opprydding-dev` kobler seg på databasen til `sp-rettighetskategori` og trenger IP-en til Cloud SQL-instansen i `.nais/dev-db-policy.yaml`.
-Instansen opprettes når `sp-rettighetskategori` deployes til dev første gang. Slå opp IP-en med
-
-```shell
-kubectl get sqlinstance sp-rettighetskategori -n tbd -o jsonpath='{.status.publicIpAddress}'
-```
-
 ## Henvendelser
 
 Spørsmål knyttet til koden eller prosjektet kan stilles som issues her på GitHub.
