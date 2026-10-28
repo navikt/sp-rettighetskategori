@@ -1,8 +1,11 @@
 package no.nav.helse.sykepenger.rettighetskategori
 
+import com.github.navikt.tbd_libs.azure.createAzureTokenClientFromEnvironment
 import com.github.navikt.tbd_libs.kafka.AivenConfig
 import com.github.navikt.tbd_libs.kafka.Config
 import com.github.navikt.tbd_libs.kafka.ConsumerProducerFactory
+import com.github.navikt.tbd_libs.rapids_and_rivers_api.RapidsConnection
+import com.github.navikt.tbd_libs.spedisjon.SpedisjonClient
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.ApplicationStarted
@@ -10,18 +13,27 @@ import io.ktor.server.application.ApplicationStopped
 import no.nav.helse.rapids_rivers.RapidApplication
 import no.nav.sykepenger.libs.logging.loggInfo
 import org.flywaydb.core.Flyway
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.Duration
+import javax.sql.DataSource
 
 fun main() {
+    val env = System.getenv()
     launchApplication(
-        env = System.getenv(),
+        env = env,
         kafkaConfig = AivenConfig.default,
+        spedisjonClient =
+            SpedisjonClient(
+                objectMapper = jacksonObjectMapper(),
+                tokenProvider = createAzureTokenClientFromEnvironment(env),
+            ),
     )
 }
 
-fun launchApplication(
+internal fun launchApplication(
     env: Map<String, String>,
     kafkaConfig: Config,
+    spedisjonClient: SpedisjonClient,
 ) {
     val dataSource =
         HikariDataSource(
@@ -59,5 +71,15 @@ fun launchApplication(
                     }
                 }
             },
-        ).start()
+        ).apply { registrerRivers(dataSource, spedisjonClient) }
+        .start()
+}
+
+internal fun RapidsConnection.registrerRivers(
+    dataSource: DataSource,
+    spedisjonClient: SpedisjonClient,
+) {
+    val repository = RettighetskategoriRepository(dataSource)
+    RettighetskategoriRiver(this, Søknader(spedisjonClient), repository)
+    RettighetskategoriResultatRiver(this, repository)
 }

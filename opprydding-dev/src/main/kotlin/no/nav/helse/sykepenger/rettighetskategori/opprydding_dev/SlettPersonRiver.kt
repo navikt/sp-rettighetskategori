@@ -7,6 +7,7 @@ import com.github.navikt.tbd_libs.rapids_and_rivers_api.MessageMetadata
 import com.github.navikt.tbd_libs.rapids_and_rivers_api.RapidsConnection
 import io.micrometer.core.instrument.MeterRegistry
 import kotliquery.TransactionalSession
+import kotliquery.queryOf
 import kotliquery.sessionOf
 import org.intellij.lang.annotations.Language
 import javax.sql.DataSource
@@ -39,12 +40,13 @@ internal class SlettPersonRiver(
         context.publish(fødselsnummer, lagPersonSlettet(fødselsnummer))
     }
 
-    @Suppress("UNUSED_PARAMETER")
     private fun slettPerson(
         tx: TransactionalSession,
         fødselsnummer: String,
     ) {
-        // sp-rettighetskategori har ingen tabeller med persondata ennå. Legg til sletting her når de kommer.
+        @Language("PostgreSQL")
+        val sql = "DELETE FROM rettighetskategori WHERE fødselsnummer = :fodselsnummer"
+        tx.run(queryOf(sql, mapOf("fodselsnummer" to fødselsnummer)).asUpdate)
     }
 
     @Language("JSON")

@@ -1,6 +1,11 @@
 # sp-rettighetskategori
 
-Skjelett for appen. Foreløpig kjører den på rapiden, svarer på ping, eksponerer helsesjekker og migrerer en egen database.
+Avgjør rettighetskategorien for et sykefraværstilfelle. Appen svarer på to behov på rapiden:
+
+- `Rettighetskategori`: inn kommer `fødselsnummer`, `Rettighetskategori.skjæringstidspunkt` og `Rettighetskategori.søknader`, som er referanse-ID-ene (`@id`) til de sendte søknadene. Appen henter søknadene fra Spedisjon, avgjør hovedkategorien og lagrer avgjørelsen. Løsningen har `id` og `hovedkategori`.
+- `RettighetskategoriResultat`: inn kommer `fødselsnummer` og `RettighetskategoriResultat.rettighetskategoriId`. Løsningen har `hovedkategori`.
+
+Foreløpig gir appen hovedkategoriene `Arbeidstaker` og `SelvstendigNæringsdrivende`. Hvis appen ikke klarer å avgjøre kategorien, for eksempel fordi Spedisjon ikke svarer, svarer den ikke på behovet, og feilen logges.
 
 ## Moduler
 

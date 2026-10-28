@@ -13,7 +13,10 @@ postgresql = "org.postgresql:postgresql:42.7.14"
 rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026091610031789545782"
 sykepengerLibs-logging = "no.nav.sykepenger.libs:logging:20261013.1719"
 
+tbd-libs-azure-token-client-default = { module = "com.github.navikt.tbd-libs:azure-token-client-default", version.ref = "tbd-libs" }
+tbd-libs-mock-http-client = { module = "com.github.navikt.tbd-libs:mock-http-client", version.ref = "tbd-libs" }
 tbd-libs-rapids-and-rivers-test = { module = "com.github.navikt.tbd-libs:rapids-and-rivers-test", version.ref = "tbd-libs" }
+tbd-libs-spedisjon-client = { module = "com.github.navikt.tbd-libs:spedisjon-client", version.ref = "tbd-libs" }
 testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
 testcontainers-postgres = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 
