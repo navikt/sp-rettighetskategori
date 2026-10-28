@@ -1,4 +1,4 @@
-rootProject.name = "helse-sp-rettighetskategori"
+rootProject.name = "sp-rettighetskategori"
 include(
     "migreringer",
     "sp-rettighetskategori",
