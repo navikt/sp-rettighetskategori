@@ -1,0 +1,26 @@
+spec:
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_18
+        diskAutoresize: true
+        tier: db-f1-micro
+        name: sp-rettighetskategori
+        databases:
+          - name: sp-rettighetskategori
+            envVarPrefix: DATABASE
+            users:
+              - name: sp-rettighetskategori-opprydding-dev
+        flags:
+          - name: cloudsql.enable_pgaudit
+            value: "off"
+          - name: pgaudit.log
+            value: "write,ddl,role"
+          - name: pgaudit.log_parameter
+            value: "on"
+          - name: pgaudit.log_relation
+            value: "on"
+  kafka:
+    pool: nav-dev
+  env:
+    - name: DB_MAX_POOL_SIZE
+      value: "3"

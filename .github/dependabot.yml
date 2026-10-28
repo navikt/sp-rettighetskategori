@@ -1,0 +1,26 @@
+version: 2
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "⬆️ "
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
+    cooldown:
+      default-days: 7
+      exclude:
+        - "navikt/sykepenger-github-workflows*"
+
+  - package-ecosystem: "gradle"
+    directory: "/"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
+    cooldown:
+      default-days: 7
+      exclude:
+        - "no.nav.sykepenger.*"
+        - "com.github.navikt.tbd-libs:*"
