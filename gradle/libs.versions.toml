@@ -1,7 +1,7 @@
 [versions]
-flyway = "13.10.3"
+flyway = "13.11.1"
 tbd-libs = "20261013.1613"
-sykepengerGradlePlugins = "20261026.1611"
+sykepengerGradlePlugins = "20261028.1441"
 testcontainers = "2.0.5"
 
 [libraries]
