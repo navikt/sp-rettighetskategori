@@ -17,11 +17,9 @@ internal class Søknader(
     }
 
     private fun HentMeldingResponse.yrkesaktivitet(): Yrkesaktivitet {
-        val søknad = objectMapper.readTree(jsonBody)
-        val arbeidssituasjon = søknad.path("arbeidssituasjon").asString()
+        val arbeidssituasjon = objectMapper.readTree(jsonBody).path("arbeidssituasjon").asString()
         return when {
             type in søknadstyperForArbeidstaker -> Yrkesaktivitet.Arbeidstaker
-            type == "sendt_søknad_arbeidsledig" && søknad.path("tidligereArbeidsgiverOrgnummer").isString -> Yrkesaktivitet.Arbeidstaker
             type == "sendt_søknad_selvstendig" && arbeidssituasjon in arbeidssituasjonerForSelvstendig -> Yrkesaktivitet.SelvstendigNæringsdrivende
             else -> error("Søknad $internDokumentId av type $type med arbeidssituasjon $arbeidssituasjon gir ingen støttet yrkesaktivitet")
         }

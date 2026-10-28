@@ -91,7 +91,7 @@ internal class RettighetskategoriRiverTest {
     }
 
     @Test
-    fun `søknad fra arbeidsledig med tidligere arbeidsgiver gir hovedkategorien Arbeidstaker`() {
+    fun `søknad fra arbeidsledig med tidligere arbeidsgiver gir ubesvart behov`() {
         val søknad =
             spedisjon.sendtSøknad(
                 fødselsnummer = FØDSELSNUMMER,
@@ -102,10 +102,8 @@ internal class RettighetskategoriRiverTest {
 
         rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
 
-        assertEquals(
-            "ARBEIDSTAKER",
-            hovedkategoriILøsning(),
-        )
+        assertEquals(0, rapid.inspektør.size)
+        assertEquals(emptyList<Rad>(), lagredeRader())
     }
 
     @Test
