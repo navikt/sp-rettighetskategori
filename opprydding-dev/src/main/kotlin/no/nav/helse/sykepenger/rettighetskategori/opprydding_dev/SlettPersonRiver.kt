@@ -47,6 +47,10 @@ internal class SlettPersonRiver(
         @Language("PostgreSQL")
         val sql = "DELETE FROM rettighetskategori WHERE fødselsnummer = :fodselsnummer"
         tx.run(queryOf(sql, mapOf("fodselsnummer" to fødselsnummer)).asUpdate)
+
+        @Language("PostgreSQL")
+        val sqlMigreringslogg = "DELETE FROM migreringslogg WHERE fødselsnummer = :fodselsnummer"
+        tx.run(queryOf(sqlMigreringslogg, mapOf("fodselsnummer" to fødselsnummer)).asUpdate)
     }
 
     @Language("JSON")

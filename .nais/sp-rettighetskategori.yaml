@@ -53,3 +53,4 @@ spec:
         - application: logging
           namespace: nais-system
         - application: spedisjon
+        - application: spleis-api

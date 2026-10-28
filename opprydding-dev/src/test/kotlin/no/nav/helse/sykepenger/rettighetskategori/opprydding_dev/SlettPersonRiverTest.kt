@@ -55,6 +55,39 @@ internal class SlettPersonRiverTest {
         assertEquals(1, antallRettighetskategorier(annenPerson))
     }
 
+    @Test
+    fun `sletter migreringsloggen til personen`() {
+        val fødselsnummer = "01020312345"
+        val annenPerson = "02030412345"
+        lagreMigreringslogg(fødselsnummer)
+        lagreMigreringslogg(annenPerson)
+
+        rapid.sendTestMessage(slettPersonMelding(fødselsnummer))
+
+        assertEquals(0, antallILoggen(fødselsnummer))
+        assertEquals(1, antallILoggen(annenPerson))
+    }
+
+    private fun lagreMigreringslogg(fødselsnummer: String) {
+        sessionOf(Database.dataSource).use {
+            it.run(
+                queryOf(
+                    "INSERT INTO migreringslogg (fødselsnummer, antall_fra_spleis, antall_nye) VALUES (:fodselsnummer, 1, 1)",
+                    mapOf("fodselsnummer" to fødselsnummer),
+                ).asUpdate,
+            )
+        }
+    }
+
+    private fun antallILoggen(fødselsnummer: String) =
+        sessionOf(Database.dataSource).use {
+            it.run(
+                queryOf("SELECT COUNT(*) FROM migreringslogg WHERE fødselsnummer = :fodselsnummer", mapOf("fodselsnummer" to fødselsnummer))
+                    .map { row -> row.int(1) }
+                    .asSingle,
+            )
+        }
+
     private fun lagreRettighetskategori(fødselsnummer: String) {
         sessionOf(Database.dataSource).use {
             it.run(

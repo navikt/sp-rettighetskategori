@@ -15,6 +15,7 @@ import java.util.UUID
 internal class RettighetskategoriResultatRiver(
     rapidsConnection: RapidsConnection,
     private val repository: RettighetskategoriRepository,
+    private val innfylling: Innfylling,
 ) : River.PacketListener {
     init {
         River(rapidsConnection)
@@ -42,15 +43,16 @@ internal class RettighetskategoriResultatRiver(
         medMdc(MdcKey.IDENTITETSNUMMER to fødselsnummer) {
             loggInfo("Mottatt behov for $BEHOV", "rettighetskategoriId" to rettighetskategoriId)
             try {
-                val rettighetskategori =
-                    checkNotNull(repository.finn(UUID.fromString(rettighetskategoriId))) {
-                        "Fant ikke rettighetskategori med id $rettighetskategoriId"
-                    }
-                packet["@løsning"] = mapOf(BEHOV to mapOf("hovedkategori" to rettighetskategori.hovedkategori.name))
+                val id = UUID.fromString(rettighetskategoriId)
+                val hovedkategori =
+                    repository.finn(id)?.hovedkategori
+                        ?: innfylling.fyllInn(fødselsnummer).find { it.id == id }?.hovedkategori
+                        ?: error("Fant ikke rettighetskategori med id $rettighetskategoriId, heller ikke i Spleis")
+                packet["@løsning"] = mapOf(BEHOV to mapOf("hovedkategori" to hovedkategori.name))
                 loggInfo(
                     "Publiserer løsning på $BEHOV",
                     "rettighetskategoriId" to rettighetskategoriId,
-                    "hovedkategori" to rettighetskategori.hovedkategori.name,
+                    "hovedkategori" to hovedkategori.name,
                 )
                 context.publish(packet.toJson())
             } catch (ex: Exception) {

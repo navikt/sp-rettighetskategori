@@ -31,6 +31,7 @@ internal enum class Kilde(
 ) {
     AUTOMATISK("automatisk"),
     SAKSBEHANDLER("saksbehandler"),
+    SPLEIS("spleis"),
     ;
 
     companion object {
@@ -61,6 +62,22 @@ internal data class Rettighetskategori(
             kilde = Kilde.AUTOMATISK,
             vurderingstidspunkt = Instant.now(),
             søknader = søknader,
+        )
+
+        fun fraSpleis(
+            id: UUID,
+            fødselsnummer: String,
+            skjæringstidspunkt: LocalDate,
+            hovedkategori: Hovedkategori,
+            vurderingstidspunkt: Instant,
+        ) = Rettighetskategori(
+            id = id,
+            fødselsnummer = fødselsnummer,
+            skjæringstidspunkt = skjæringstidspunkt,
+            hovedkategori = hovedkategori,
+            kilde = Kilde.SPLEIS,
+            vurderingstidspunkt = vurderingstidspunkt,
+            søknader = emptyList(),
         )
     }
 }

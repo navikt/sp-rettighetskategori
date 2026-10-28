@@ -5,13 +5,19 @@ import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
+import java.time.LocalDate
 import java.util.UUID
 
 internal class RettighetskategoriResultatRiverTest {
     private val spedisjon = FakeSpedisjon()
+    private val spleis = FakeSpleis()
     private val rapid =
         TestRapid().apply {
-            registrerRivers(TestDatabase.dataSource, spedisjon.client)
+            registrerRivers(TestDatabase.dataSource, spedisjon.client, spleis.client)
         }
 
     @BeforeEach
@@ -28,8 +34,61 @@ internal class RettighetskategoriResultatRiverTest {
         assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", hovedkategoriFor(selvstendig))
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("historiskePersoner")
+    fun `hovedkategorien for en ID fra Spleis avgjøres slik Spleis gjorde`(
+        @Suppress("unused") beskrivelse: String,
+        person: HistoriskPerson,
+    ) {
+        val rettighetskategoriId =
+            spleis.rettighetskategori(
+                FØDSELSNUMMER,
+                aktive = person.aktive,
+                forkastede = person.forkastede,
+                kilde = person.kilde,
+                harSelvstendigInntekt = person.harSelvstendigInntekt,
+            )
+
+        assertEquals(person.hovedkategori, hovedkategoriFor(rettighetskategoriId.toString()))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["FRILANS", "ARBEIDSLEDIG"])
+    fun `yrkesaktivitetstype som ikke gir støttet hovedkategori gir ubesvart behov`(yrkesaktivitetstype: String) {
+        val rettighetskategoriId = spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER", yrkesaktivitetstype))
+
+        rapid.sendTestMessage(rettighetskategoriResultatBehov(rettighetskategoriId), FØDSELSNUMMER)
+
+        assertEquals(0, rapid.inspektør.size)
+    }
+
+    @Test
+    fun `ukjent rettighetskategori-ID fra Spleis fylles inn og besvares`() {
+        spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"), skjæringstidspunkt = LocalDate.parse("2017-01-01"))
+        val rettighetskategoriId = spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("SELVSTENDIG"))
+
+        assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", hovedkategoriFor(rettighetskategoriId.toString()))
+        assertEquals(listOf(TestDatabase.Logginnslag(FØDSELSNUMMER, antallFraSpleis = 2, antallNye = 2)), TestDatabase.migreringslogg())
+
+        assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", hovedkategoriFor(rettighetskategoriId.toString()))
+        assertEquals(1, spleis.antallKall)
+    }
+
     @Test
     fun `ukjent rettighetskategori-ID gir ubesvart behov`() {
+        spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"))
+
+        rapid.sendTestMessage(rettighetskategoriResultatBehov(UUID.randomUUID()), FØDSELSNUMMER)
+
+        assertEquals(0, rapid.inspektør.size)
+        assertEquals(1, spleis.antallKall)
+        assertEquals(listOf(TestDatabase.Logginnslag(FØDSELSNUMMER, antallFraSpleis = 1, antallNye = 1)), TestDatabase.migreringslogg())
+    }
+
+    @Test
+    fun `feil fra spleis-api gir ubesvart behov`() {
+        spleis.feiler()
+
         rapid.sendTestMessage(rettighetskategoriResultatBehov(UUID.randomUUID()), FØDSELSNUMMER)
 
         assertEquals(0, rapid.inspektør.size)
@@ -75,8 +134,56 @@ internal class RettighetskategoriResultatRiverTest {
             .asString()
     }
 
+    internal data class HistoriskPerson(
+        val aktive: List<String> = emptyList(),
+        val forkastede: List<String> = emptyList(),
+        val kilde: String = "SPLEIS",
+        val harSelvstendigInntekt: Boolean = false,
+        val hovedkategori: String,
+    )
+
     private companion object {
         const val FØDSELSNUMMER = "12029240045"
+
+        @JvmStatic
+        fun historiskePersoner() =
+            listOf(
+                Arguments.of("arbeidstaker", HistoriskPerson(aktive = listOf("ARBEIDSTAKER"), hovedkategori = "ARBEIDSTAKER")),
+                Arguments.of(
+                    "selvstendig med selvstendig inntekt",
+                    HistoriskPerson(aktive = listOf("SELVSTENDIG"), harSelvstendigInntekt = true, hovedkategori = "SELVSTENDIG_NÆRINGSDRIVENDE"),
+                ),
+                Arguments.of(
+                    "arbeidstaker og selvstendig på samme vilkårsgrunnlag",
+                    HistoriskPerson(
+                        aktive = listOf("ARBEIDSTAKER", "SELVSTENDIG"),
+                        harSelvstendigInntekt = true,
+                        hovedkategori = "ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE",
+                    ),
+                ),
+                Arguments.of("to arbeidsgivere", HistoriskPerson(aktive = listOf("ARBEIDSTAKER", "ARBEIDSTAKER"), hovedkategori = "ARBEIDSTAKER")),
+                Arguments.of(
+                    "aktive perioder går foran forkastede",
+                    HistoriskPerson(aktive = listOf("ARBEIDSTAKER"), forkastede = listOf("ARBEIDSTAKER", "SELVSTENDIG"), hovedkategori = "ARBEIDSTAKER"),
+                ),
+                Arguments.of(
+                    "bare forkastede perioder",
+                    HistoriskPerson(forkastede = listOf("SELVSTENDIG"), hovedkategori = "SELVSTENDIG_NÆRINGSDRIVENDE"),
+                ),
+                Arguments.of(
+                    "vilkårsgrunnlag fra Infotrygd",
+                    HistoriskPerson(aktive = listOf("ARBEIDSTAKER"), kilde = "INFOTRYGD", hovedkategori = "ARBEIDSTAKER"),
+                ),
+                Arguments.of(
+                    "vilkårsgrunnlag fra Infotrygd med bare forkastede selvstendig-perioder",
+                    HistoriskPerson(forkastede = listOf("SELVSTENDIG"), kilde = "INFOTRYGD", hovedkategori = "ARBEIDSTAKER"),
+                ),
+                Arguments.of(
+                    "uten perioder, med selvstendig inntekt",
+                    HistoriskPerson(harSelvstendigInntekt = true, hovedkategori = "SELVSTENDIG_NÆRINGSDRIVENDE"),
+                ),
+                Arguments.of("uten perioder og uten selvstendig inntekt", HistoriskPerson(hovedkategori = "ARBEIDSTAKER")),
+            )
 
         @Language("JSON")
         fun rettighetskategoriBehov(søknad: UUID) =

@@ -20,7 +20,7 @@ internal class RettighetskategoriRiverTest {
     private val spedisjon = FakeSpedisjon()
     private val rapid =
         TestRapid().apply {
-            registrerRivers(TestDatabase.dataSource, spedisjon.client)
+            registrerRivers(TestDatabase.dataSource, spedisjon.client, FakeSpleis().client)
         }
 
     @BeforeEach

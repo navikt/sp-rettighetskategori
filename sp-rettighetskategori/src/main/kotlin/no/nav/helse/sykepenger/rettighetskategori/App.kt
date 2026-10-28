@@ -14,19 +14,22 @@ import no.nav.helse.rapids_rivers.RapidApplication
 import no.nav.sykepenger.libs.logging.loggInfo
 import org.flywaydb.core.Flyway
 import tools.jackson.module.kotlin.jacksonObjectMapper
+import java.net.http.HttpClient
 import java.time.Duration
 import javax.sql.DataSource
 
 fun main() {
     val env = System.getenv()
+    val tokenProvider = createAzureTokenClientFromEnvironment(env)
     launchApplication(
         env = env,
         kafkaConfig = AivenConfig.default,
         spedisjonClient =
             SpedisjonClient(
                 objectMapper = jacksonObjectMapper(),
-                tokenProvider = createAzureTokenClientFromEnvironment(env),
+                tokenProvider = tokenProvider,
             ),
+        spleisClient = SpleisClient.fraMiljø(env, HttpClient.newHttpClient(), tokenProvider),
     )
 }
 
@@ -34,6 +37,7 @@ internal fun launchApplication(
     env: Map<String, String>,
     kafkaConfig: Config,
     spedisjonClient: SpedisjonClient,
+    spleisClient: SpleisClient,
 ) {
     val dataSource =
         HikariDataSource(
@@ -71,15 +75,18 @@ internal fun launchApplication(
                     }
                 }
             },
-        ).apply { registrerRivers(dataSource, spedisjonClient) }
+        ).apply { registrerRivers(dataSource, spedisjonClient, spleisClient) }
         .start()
 }
 
 internal fun RapidsConnection.registrerRivers(
     dataSource: DataSource,
     spedisjonClient: SpedisjonClient,
+    spleisClient: SpleisClient,
 ) {
     val repository = RettighetskategoriRepository(dataSource)
+    val innfylling = Innfylling(spleisClient, repository)
     RettighetskategoriRiver(this, Søknader(spedisjonClient), repository)
-    RettighetskategoriResultatRiver(this, repository)
+    RettighetskategoriResultatRiver(this, repository, innfylling)
+    PersonAvstemmingRiver(this, innfylling)
 }

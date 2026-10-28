@@ -67,6 +67,7 @@ internal class AppTest {
                     ),
                 kafkaConfig = kafkaConfig,
                 spedisjonClient = FakeSpedisjon().client,
+                spleisClient = FakeSpleis().client,
             )
         }
         ventTil("applikasjonen er klar") { statuskode("/isready") == 200 }

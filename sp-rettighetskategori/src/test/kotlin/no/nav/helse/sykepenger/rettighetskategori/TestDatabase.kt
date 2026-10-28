@@ -27,6 +27,21 @@ internal object TestDatabase {
         }
 
     fun tøm() {
-        sessionOf(dataSource).use { it.run(queryOf("TRUNCATE rettighetskategori").asExecute) }
+        sessionOf(dataSource).use { it.run(queryOf("TRUNCATE rettighetskategori, migreringslogg").asExecute) }
     }
+
+    data class Logginnslag(
+        val fødselsnummer: String,
+        val antallFraSpleis: Int,
+        val antallNye: Int,
+    )
+
+    fun migreringslogg(): List<Logginnslag> =
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf("SELECT * FROM migreringslogg ORDER BY løpenummer")
+                    .map { row -> Logginnslag(row.string("fødselsnummer"), row.int("antall_fra_spleis"), row.int("antall_nye")) }
+                    .asList,
+            )
+        }
 }
