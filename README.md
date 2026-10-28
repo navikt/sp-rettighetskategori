@@ -18,7 +18,7 @@ Spleis har rettighetskategori-ID-er på vilkårsgrunnlag som ble laget før denn
 - Finnes ingen perioder, gir selvstendig inntekt i inntektsgrunnlaget `SELVSTENDIG_NÆRINGSDRIVENDE` og ellers `ARBEIDSTAKER`.
 - Frilanser eller arbeidsledig blant periodene som brukes, gir feil, og ingenting lagres for personen.
 
-Avgjørelser fra backfill har kilde `spleis`, vurderingstidspunktet fra Spleis og ingen søknader. En ID som er lagret fra før, blir ikke endret. Hver backfill føres i tabellen `migreringslogg` med antall ID-er fra Spleis og antall nye.
+Avgjørelser fra backfill har kilde `spleis`, vurderingstidspunktet fra Spleis og ingen søknader. En ID som er lagret fra før, blir ikke endret. Hver backfill som lagrer minst én ny ID, føres i tabellen `migreringslogg` med antall ID-er fra Spleis og antall nye.
 
 ## Moduler
 

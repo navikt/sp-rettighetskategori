@@ -81,6 +81,17 @@ internal class PersonAvstemmingRiverTest {
     }
 
     @Test
+    fun `avstemming uten nye ID-er føres ikke i migreringsloggen`() {
+        spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"))
+        rapid.sendTestMessage(personAvstemming(), FØDSELSNUMMER)
+        rapid.sendTestMessage(personAvstemming(), FØDSELSNUMMER)
+        rapid.sendTestMessage(personAvstemming("01020312345"), "01020312345")
+
+        assertEquals(3, spleis.antallKall)
+        assertEquals(listOf(TestDatabase.Logginnslag(FØDSELSNUMMER, antallFraSpleis = 1, antallNye = 1)), TestDatabase.migreringslogg())
+    }
+
+    @Test
     fun `avgjørelse fra backfill blir ikke gjeldende når en automatisk avgjørelse er nyere`() {
         val søknad = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
         val automatisk = rettighetskategoriIdFor(søknad)
@@ -103,7 +114,7 @@ internal class PersonAvstemmingRiverTest {
         assertEquals(automatisk, lagret.id)
         assertEquals("automatisk", lagret.kilde)
         assertEquals("ARBEIDSTAKER", lagret.hovedkategori)
-        assertEquals(listOf(TestDatabase.Logginnslag(FØDSELSNUMMER, antallFraSpleis = 1, antallNye = 0)), TestDatabase.migreringslogg())
+        assertEquals(emptyList<TestDatabase.Logginnslag>(), TestDatabase.migreringslogg())
     }
 
     @Test

@@ -24,21 +24,29 @@ internal class RettighetskategoriRepository(
             session.transaction { tx ->
                 sjekkAtIngenTilhørerAndrePersoner(tx, fødselsnummer, rettighetskategorier)
                 val antallNye = rettighetskategorier.sumOf { lagre(tx, it) }
-
-                @Language("PostgreSQL")
-                val sql = """
-                    INSERT INTO migreringslogg (fødselsnummer, antall_fra_spleis, antall_nye)
-                    VALUES (:fodselsnummer, :antallFraSpleis, :antallNye)
-                """
-                tx.run(
-                    queryOf(
-                        sql,
-                        mapOf("fodselsnummer" to fødselsnummer, "antallFraSpleis" to rettighetskategorier.size, "antallNye" to antallNye),
-                    ).asUpdate,
-                )
+                if (antallNye > 0) loggBackfill(tx, fødselsnummer, rettighetskategorier.size, antallNye)
                 antallNye
             }
         }
+
+    private fun loggBackfill(
+        session: Session,
+        fødselsnummer: String,
+        antallFraSpleis: Int,
+        antallNye: Int,
+    ) {
+        @Language("PostgreSQL")
+        val sql = """
+            INSERT INTO migreringslogg (fødselsnummer, antall_fra_spleis, antall_nye)
+            VALUES (:fodselsnummer, :antallFraSpleis, :antallNye)
+        """
+        session.run(
+            queryOf(
+                sql,
+                mapOf("fodselsnummer" to fødselsnummer, "antallFraSpleis" to antallFraSpleis, "antallNye" to antallNye),
+            ).asUpdate,
+        )
+    }
 
     private fun sjekkAtIngenTilhørerAndrePersoner(
         session: Session,
