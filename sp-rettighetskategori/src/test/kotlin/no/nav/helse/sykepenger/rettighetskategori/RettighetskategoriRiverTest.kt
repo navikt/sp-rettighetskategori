@@ -97,7 +97,7 @@ internal class RettighetskategoriRiverTest {
     private fun lagredeRader(): List<Rad> =
         sessionOf(TestDatabase.dataSource).use { session ->
             session.run(
-                queryOf("SELECT * FROM rettighetskategori ORDER BY tidspunkt")
+                queryOf("SELECT * FROM rettighetskategori ORDER BY opprettet")
                     .map { row ->
                         Rad(
                             id = row.uuid("id"),

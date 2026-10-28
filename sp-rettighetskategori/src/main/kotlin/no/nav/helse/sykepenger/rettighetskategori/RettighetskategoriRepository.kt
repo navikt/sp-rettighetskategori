@@ -13,8 +13,8 @@ internal class RettighetskategoriRepository(
     fun lagre(rettighetskategori: Rettighetskategori) {
         @Language("PostgreSQL")
         val sql = """
-            INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, tidspunkt, søknader)
-            VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, :kilde, :tidspunkt, :soknader)
+            INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader)
+            VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, :kilde, :vurderingstidspunkt, :soknader)
         """
         sessionOf(dataSource).use { session ->
             session.run(
@@ -26,7 +26,7 @@ internal class RettighetskategoriRepository(
                         "skjaeringstidspunkt" to rettighetskategori.skjæringstidspunkt,
                         "hovedkategori" to rettighetskategori.hovedkategori.name,
                         "kilde" to rettighetskategori.kilde.dbVerdi,
-                        "tidspunkt" to rettighetskategori.tidspunkt,
+                        "vurderingstidspunkt" to rettighetskategori.vurderingstidspunkt,
                         "soknader" to session.createArrayOf("uuid", rettighetskategori.søknader),
                     ),
                 ).asUpdate,
@@ -37,7 +37,7 @@ internal class RettighetskategoriRepository(
     fun finn(id: UUID): Rettighetskategori? {
         @Language("PostgreSQL")
         val sql = """
-            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, tidspunkt, søknader
+            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader
             FROM rettighetskategori
             WHERE id = :id
         """
@@ -53,7 +53,7 @@ internal class RettighetskategoriRepository(
             skjæringstidspunkt = row.localDate("skjæringstidspunkt"),
             hovedkategori = Hovedkategori.valueOf(row.string("hovedkategori")),
             kilde = Kilde.fraDbVerdi(row.string("kilde")),
-            tidspunkt = row.instant("tidspunkt"),
+            vurderingstidspunkt = row.instant("vurderingstidspunkt"),
             søknader = row.array<UUID>("søknader").toList(),
         )
 }

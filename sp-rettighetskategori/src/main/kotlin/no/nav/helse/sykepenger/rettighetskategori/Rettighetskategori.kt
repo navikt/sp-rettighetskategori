@@ -41,7 +41,7 @@ internal data class Rettighetskategori(
     val skjæringstidspunkt: LocalDate,
     val hovedkategori: Hovedkategori,
     val kilde: Kilde,
-    val tidspunkt: Instant,
+    val vurderingstidspunkt: Instant,
     val søknader: List<UUID>,
 ) {
     companion object {
@@ -56,7 +56,7 @@ internal data class Rettighetskategori(
             skjæringstidspunkt = skjæringstidspunkt,
             hovedkategori = hovedkategori,
             kilde = Kilde.AUTOMATISK,
-            tidspunkt = Instant.now(),
+            vurderingstidspunkt = Instant.now(),
             søknader = søknader,
         )
     }

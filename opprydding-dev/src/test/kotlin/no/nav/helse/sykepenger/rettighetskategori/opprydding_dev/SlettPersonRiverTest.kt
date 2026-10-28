@@ -60,7 +60,7 @@ internal class SlettPersonRiverTest {
             it.run(
                 queryOf(
                     """
-                    INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, tidspunkt, søknader)
+                    INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader)
                     VALUES (gen_random_uuid(), :fodselsnummer, '2018-01-01', 'Arbeidstaker', 'automatisk', now(), ARRAY[gen_random_uuid()])
                     """,
                     mapOf("fodselsnummer" to fødselsnummer),
