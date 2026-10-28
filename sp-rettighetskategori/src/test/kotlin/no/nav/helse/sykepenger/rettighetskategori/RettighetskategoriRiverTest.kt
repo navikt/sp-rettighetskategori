@@ -86,11 +86,7 @@ internal class RettighetskategoriRiverTest {
 
         assertEquals(
             hovedkategori,
-            rapid.inspektør
-                .message(0)
-                .løsning()
-                .path("hovedkategori")
-                .asString(),
+            hovedkategoriILøsning(),
         )
     }
 
@@ -108,11 +104,7 @@ internal class RettighetskategoriRiverTest {
 
         assertEquals(
             "Arbeidstaker",
-            rapid.inspektør
-                .message(0)
-                .løsning()
-                .path("hovedkategori")
-                .asString(),
+            hovedkategoriILøsning(),
         )
     }
 
@@ -130,11 +122,7 @@ internal class RettighetskategoriRiverTest {
 
         assertEquals(
             "Arbeidstaker",
-            rapid.inspektør
-                .message(0)
-                .løsning()
-                .path("hovedkategori")
-                .asString(),
+            hovedkategoriILøsning(),
         )
     }
 
@@ -274,6 +262,13 @@ internal class RettighetskategoriRiverTest {
     }
 
     private fun JsonNode.løsning() = path("@løsning").path("Rettighetskategori")
+
+    private fun hovedkategoriILøsning() =
+        rapid.inspektør
+            .message(0)
+            .løsning()
+            .path("hovedkategori")
+            .asString()
 
     private data class Rad(
         val id: UUID,

@@ -5,7 +5,9 @@ Avgjør rettighetskategorien for et sykefraværstilfelle. Appen svarer på to be
 - `Rettighetskategori`: inn kommer `fødselsnummer`, `Rettighetskategori.skjæringstidspunkt` og `Rettighetskategori.søknader`, som er referanse-ID-ene (`@id`) til de sendte søknadene. Appen henter søknadene fra Spedisjon, avgjør hovedkategorien og lagrer avgjørelsen. Løsningen har `id` og `hovedkategori`.
 - `RettighetskategoriResultat`: inn kommer `fødselsnummer` og `RettighetskategoriResultat.rettighetskategoriId`. Løsningen har `hovedkategori`.
 
-Foreløpig gir appen hovedkategoriene `Arbeidstaker` og `SelvstendigNæringsdrivende`. Hvis appen ikke klarer å avgjøre kategorien, for eksempel fordi Spedisjon ikke svarer, svarer den ikke på behovet, og feilen logges.
+Hver søknad gir en yrkesaktivitet ut fra søknadstypen og `arbeidssituasjon`, på samme måte som i Spleis. Appen gir hovedkategoriene `Arbeidstaker`, `SelvstendigNæringsdrivende` og `ArbeidstakerOgSelvstendigNæringsdrivende`. Får appen samme søknader for samme person og skjæringstidspunkt som i den gjeldende avgjørelsen, svarer den med den gjeldende avgjørelsen og lagrer ingen ny. Gjeldende avgjørelse er den med nyest vurderingstidspunkt.
+
+Hvis appen ikke klarer å avgjøre kategorien, svarer den ikke på behovet, og feilen logges. Det skjer for eksempel når Spedisjon ikke svarer eller mangler en søknad, og når en søknad gjelder en annen yrkesaktivitet, som frilanser eller arbeidsledig.
 
 ## Moduler
 

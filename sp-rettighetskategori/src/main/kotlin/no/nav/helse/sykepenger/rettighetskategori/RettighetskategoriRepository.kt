@@ -56,7 +56,7 @@ internal class RettighetskategoriRepository(
             SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader
             FROM rettighetskategori
             WHERE fødselsnummer = :fodselsnummer AND skjæringstidspunkt = :skjaeringstidspunkt
-            ORDER BY opprettet DESC
+            ORDER BY vurderingstidspunkt DESC
             LIMIT 1
         """
         return sessionOf(dataSource).use { session ->
