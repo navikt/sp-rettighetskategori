@@ -1,7 +1,6 @@
 CREATE TABLE rettighetskategori
 (
-    løpenummer         BIGSERIAL PRIMARY KEY,
-    id                 UUID        NOT NULL UNIQUE,
+    id                 UUID PRIMARY KEY,
     fødselsnummer      VARCHAR(11) NOT NULL,
     skjæringstidspunkt DATE        NOT NULL,
     hovedkategori      TEXT        NOT NULL,
@@ -11,4 +10,4 @@ CREATE TABLE rettighetskategori
 );
 
 CREATE INDEX idx_rettighetskategori_noekkel
-    ON rettighetskategori (fødselsnummer, skjæringstidspunkt, løpenummer DESC);
+    ON rettighetskategori (fødselsnummer, skjæringstidspunkt, tidspunkt DESC);
