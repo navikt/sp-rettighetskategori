@@ -8,6 +8,3 @@ CREATE TABLE rettighetskategori
     tidspunkt          TIMESTAMPTZ NOT NULL,
     søknader           UUID[]      NOT NULL
 );
-
-CREATE INDEX idx_rettighetskategori_noekkel
-    ON rettighetskategori (fødselsnummer, skjæringstidspunkt, tidspunkt DESC);
