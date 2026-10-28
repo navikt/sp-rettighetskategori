@@ -15,7 +15,7 @@ import java.util.UUID
 internal class RettighetskategoriResultatRiver(
     rapidsConnection: RapidsConnection,
     private val repository: RettighetskategoriRepository,
-    private val innfylling: Innfylling,
+    private val backfill: Backfill,
 ) : River.PacketListener {
     init {
         River(rapidsConnection)
@@ -46,7 +46,7 @@ internal class RettighetskategoriResultatRiver(
                 val id = UUID.fromString(rettighetskategoriId)
                 val hovedkategori =
                     repository.finn(id)?.hovedkategori
-                        ?: innfylling.fyllInn(fødselsnummer).find { it.id == id }?.hovedkategori
+                        ?: backfill.backfill(fødselsnummer).find { it.id == id }?.hovedkategori
                         ?: error("Fant ikke rettighetskategori med id $rettighetskategoriId, heller ikke i Spleis")
                 packet["@løsning"] = mapOf(BEHOV to mapOf("hovedkategori" to hovedkategori.name))
                 loggInfo(

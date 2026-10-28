@@ -13,7 +13,7 @@ import no.nav.sykepenger.libs.logging.medMdc
 
 internal class PersonAvstemmingRiver(
     rapidsConnection: RapidsConnection,
-    private val innfylling: Innfylling,
+    private val backfill: Backfill,
 ) : River.PacketListener {
     init {
         River(rapidsConnection)
@@ -35,9 +35,9 @@ internal class PersonAvstemmingRiver(
         ) {
             loggInfo("Mottatt $EVENT_NAME")
             try {
-                innfylling.fyllInn(packet["fødselsnummer"].asString())
+                backfill.backfill(packet["fødselsnummer"].asString())
             } catch (ex: Exception) {
-                loggError("Feil under innfylling av rettighetskategorier ved $EVENT_NAME", ex)
+                loggError("Feil under backfill av rettighetskategorier ved $EVENT_NAME", ex)
             }
         }
     }

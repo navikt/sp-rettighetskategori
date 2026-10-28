@@ -26,7 +26,7 @@ internal class PersonAvstemmingRiverTest {
     }
 
     @Test
-    fun `avstemming lagrer ID-ene fra Spleis som innfylte avgjørelser`() {
+    fun `avstemming lagrer ID-ene fra Spleis som avgjørelser fra backfill`() {
         val arbeidstaker =
             spleis.rettighetskategori(
                 FØDSELSNUMMER,
@@ -81,7 +81,7 @@ internal class PersonAvstemmingRiverTest {
     }
 
     @Test
-    fun `innfylt avgjørelse blir ikke gjeldende når en automatisk avgjørelse er nyere`() {
+    fun `avgjørelse fra backfill blir ikke gjeldende når en automatisk avgjørelse er nyere`() {
         val søknad = spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER)
         val automatisk = rettighetskategoriIdFor(søknad)
         spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"), skjæringstidspunkt = SKJÆRINGSTIDSPUNKT)
@@ -93,7 +93,7 @@ internal class PersonAvstemmingRiverTest {
     }
 
     @Test
-    fun `ID som allerede er avgjort automatisk, overskrives ikke av innfyllingen`() {
+    fun `ID som allerede er avgjort automatisk, overskrives ikke av backfill`() {
         val automatisk = rettighetskategoriIdFor(spedisjon.sendtSøknadArbeidsgiver(FØDSELSNUMMER))
         spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("SELVSTENDIG"), rettighetskategoriId = automatisk)
 

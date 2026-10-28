@@ -63,7 +63,7 @@ internal class RettighetskategoriResultatRiverTest {
     }
 
     @Test
-    fun `ukjent rettighetskategori-ID fra Spleis fylles inn og besvares`() {
+    fun `ukjent rettighetskategori-ID fra Spleis backfilles og besvares`() {
         spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"), skjæringstidspunkt = LocalDate.parse("2017-01-01"))
         val rettighetskategoriId = spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("SELVSTENDIG"))
 

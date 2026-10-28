@@ -2,15 +2,15 @@ package no.nav.helse.sykepenger.rettighetskategori
 
 import no.nav.sykepenger.libs.logging.loggInfo
 
-internal class Innfylling(
+internal class Backfill(
     private val spleisClient: SpleisClient,
     private val repository: RettighetskategoriRepository,
 ) {
-    fun fyllInn(fødselsnummer: String): List<Rettighetskategori> {
+    fun backfill(fødselsnummer: String): List<Rettighetskategori> {
         val rettighetskategorier = spleisClient.rettighetskategorier(fødselsnummer).map { it.tilRettighetskategori(fødselsnummer) }
-        val antallNye = repository.fyllInn(fødselsnummer, rettighetskategorier)
+        val antallNye = repository.lagreBackfill(fødselsnummer, rettighetskategorier)
         loggInfo(
-            "Fylte inn rettighetskategorier fra Spleis",
+            "Backfill av rettighetskategorier fra Spleis er ferdig",
             "antallFraSpleis" to rettighetskategorier.size.toString(),
             "antallNye" to antallNye.toString(),
         )

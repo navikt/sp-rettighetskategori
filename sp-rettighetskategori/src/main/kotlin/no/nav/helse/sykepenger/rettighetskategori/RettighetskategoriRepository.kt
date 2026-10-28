@@ -16,7 +16,7 @@ internal class RettighetskategoriRepository(
         sessionOf(dataSource).use { session -> lagre(session, rettighetskategori) }
     }
 
-    fun fyllInn(
+    fun lagreBackfill(
         fødselsnummer: String,
         rettighetskategorier: List<Rettighetskategori>,
     ): Int =

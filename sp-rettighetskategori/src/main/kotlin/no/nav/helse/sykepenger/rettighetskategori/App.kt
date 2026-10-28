@@ -85,8 +85,8 @@ internal fun RapidsConnection.registrerRivers(
     spleisClient: SpleisClient,
 ) {
     val repository = RettighetskategoriRepository(dataSource)
-    val innfylling = Innfylling(spleisClient, repository)
+    val backfill = Backfill(spleisClient, repository)
     RettighetskategoriRiver(this, Søknader(spedisjonClient), repository)
-    RettighetskategoriResultatRiver(this, repository, innfylling)
-    PersonAvstemmingRiver(this, innfylling)
+    RettighetskategoriResultatRiver(this, repository, backfill)
+    PersonAvstemmingRiver(this, backfill)
 }
