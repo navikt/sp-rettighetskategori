@@ -19,9 +19,7 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.postgresql.ds.PGSimpleDataSource
 import org.testcontainers.kafka.KafkaContainer
-import org.testcontainers.postgresql.PostgreSQLContainer
 import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
@@ -35,11 +33,12 @@ import kotlin.concurrent.thread
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import no.nav.sykepenger.libs.postgres.TestDatabase as PostgresTestDatabase
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class AppTest {
     private val rapidTopic = "tbd.rapid.v1"
-    private val postgres = PostgreSQLContainer("postgres:18").also { it.start() }
+    private val testDatabase = PostgresTestDatabase.start()
     private val kafka = KafkaContainer("apache/kafka-native:3.9.1").also { it.start() }
     private val kafkaConfig = TestKafkaConfig(kafka.bootstrapServers)
     private val httpPort = ServerSocket(0).use { it.localPort }
@@ -53,24 +52,22 @@ internal class AppTest {
         thread(name = "applikasjon", isDaemon = true) {
             launchApplication(
                 env =
-                    mapOf(
-                        "DATABASE_JDBC_URL" to postgres.jdbcUrl,
-                        "DATABASE_USERNAME" to postgres.username,
-                        "DATABASE_PASSWORD" to postgres.password,
-                        "DB_MAX_POOL_SIZE" to "2",
-                        "HTTP_PORT" to httpPort.toString(),
-                        "NAIS_APP_NAME" to "sp-rettighetskategori",
-                        "RAPID_APP_NAME" to "sp-rettighetskategori",
-                        "KAFKA_CONSUMER_GROUP_ID" to "sp-rettighetskategori-test",
-                        "KAFKA_RAPID_TOPIC" to rapidTopic,
-                        "KAFKA_RESET_POLICY" to "earliest",
-                        "AZURE_APP_CLIENT_ID" to "sp-rettighetskategori",
-                        "AZURE_OPENID_CONFIG_ISSUER" to "http://localhost/azure",
-                        "AZURE_OPENID_CONFIG_JWKS_URI" to "http://localhost/azure/jwks",
-                        "TILGANG_LES" to "les",
-                        "TILGANG_SKRIV" to "skriv",
-                        "EKSPONER_OPENAPI" to "true",
-                    ),
+                    testDatabase.env() +
+                        mapOf(
+                            "DB_POOL_SIZE" to "2",
+                            "HTTP_PORT" to httpPort.toString(),
+                            "NAIS_APP_NAME" to "sp-rettighetskategori",
+                            "RAPID_APP_NAME" to "sp-rettighetskategori",
+                            "KAFKA_CONSUMER_GROUP_ID" to "sp-rettighetskategori-test",
+                            "KAFKA_RAPID_TOPIC" to rapidTopic,
+                            "KAFKA_RESET_POLICY" to "earliest",
+                            "AZURE_APP_CLIENT_ID" to "sp-rettighetskategori",
+                            "AZURE_OPENID_CONFIG_ISSUER" to "http://localhost/azure",
+                            "AZURE_OPENID_CONFIG_JWKS_URI" to "http://localhost/azure/jwks",
+                            "TILGANG_LES" to "les",
+                            "TILGANG_SKRIV" to "skriv",
+                            "EKSPONER_OPENAPI" to "true",
+                        ),
                 kafkaConfig = kafkaConfig,
                 spedisjonClient = FakeSpedisjon().client,
                 spleisClient = FakeSpleis().client,
@@ -96,14 +93,8 @@ internal class AppTest {
 
     @Test
     fun `har migrert databasen`() {
-        val dataSource =
-            PGSimpleDataSource().apply {
-                setURL(postgres.jdbcUrl)
-                user = postgres.username
-                password = postgres.password
-            }
         val antallVellykkedeMigreringer =
-            sessionOf(dataSource).use { session ->
+            sessionOf(testDatabase.dataSource).use { session ->
                 session.run(
                     queryOf("SELECT COUNT(*) FROM flyway_schema_history WHERE success")
                         .map { it.int(1) }

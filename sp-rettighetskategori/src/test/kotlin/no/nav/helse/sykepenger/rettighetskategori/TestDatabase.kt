@@ -1,34 +1,16 @@
 package no.nav.helse.sykepenger.rettighetskategori
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
 import kotliquery.queryOf
 import kotliquery.sessionOf
-import org.flywaydb.core.Flyway
-import org.testcontainers.postgresql.PostgreSQLContainer
+import javax.sql.DataSource
+import no.nav.sykepenger.libs.postgres.TestDatabase as PostgresTestDatabase
 
 internal object TestDatabase {
-    private val postgres = PostgreSQLContainer("postgres:18").also { it.start() }
+    private val database = PostgresTestDatabase.start().also { it.migrer() }
 
-    val dataSource: HikariDataSource =
-        HikariDataSource(
-            HikariConfig().apply {
-                jdbcUrl = postgres.jdbcUrl
-                username = postgres.username
-                password = postgres.password
-                maximumPoolSize = 2
-            },
-        ).also {
-            Flyway
-                .configure()
-                .dataSource(it)
-                .load()
-                .migrate()
-        }
+    val dataSource: DataSource = database.dataSource
 
-    fun tøm() {
-        sessionOf(dataSource).use { it.run(queryOf("TRUNCATE rettighetskategori, migreringslogg").asExecute) }
-    }
+    fun tøm() = database.tøm("rettighetskategori", "migreringslogg")
 
     data class Logginnslag(
         val fødselsnummer: String,
