@@ -19,6 +19,21 @@ spec:
             value: "on"
   kafka:
     pool: nav-prod
+  azure:
+    application:
+      claims:
+        groups:
+          - id: 611669fa-de5c-4dc2-a0e8-6041a019992a # 0000-AZ-speil-brukere
+          - id: c5f26254-c6fa-4942-b81b-5cdff847d3df # 0000-CA-Speil_Lesetilgang
+          - id: c0227409-2085-4eb2-b487-c4ba270986a3 # nais-team-tbd
+          - id: f787f900-6697-440d-a086-d5bb56e26a9c # tbd
+          - id: 54273224-e40a-4e3d-b3cb-2219603058f9 # speil-riksrevisjonen-lesetilgang
   env:
+    - name: TILGANGSMASKINEN_SCOPE
+      value: "api://prod-gcp.tilgangsmaskin.populasjonstilgangskontroll/.default"
+    - name: TILGANG_SKRIV
+      value: 611669fa-de5c-4dc2-a0e8-6041a019992a
+    - name: TILGANG_LES
+      value: c5f26254-c6fa-4942-b81b-5cdff847d3df,f787f900-6697-440d-a086-d5bb56e26a9c,54273224-e40a-4e3d-b3cb-2219603058f9
     - name: DB_MAX_POOL_SIZE
       value: "3"

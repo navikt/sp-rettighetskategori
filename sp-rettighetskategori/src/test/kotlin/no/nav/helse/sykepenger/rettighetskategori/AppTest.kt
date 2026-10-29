@@ -64,10 +64,18 @@ internal class AppTest {
                         "KAFKA_CONSUMER_GROUP_ID" to "sp-rettighetskategori-test",
                         "KAFKA_RAPID_TOPIC" to rapidTopic,
                         "KAFKA_RESET_POLICY" to "earliest",
+                        "AZURE_APP_CLIENT_ID" to "sp-rettighetskategori",
+                        "AZURE_OPENID_CONFIG_ISSUER" to "http://localhost/azure",
+                        "AZURE_OPENID_CONFIG_JWKS_URI" to "http://localhost/azure/jwks",
+                        "TILGANG_LES" to "les",
+                        "TILGANG_SKRIV" to "skriv",
+                        "EKSPONER_OPENAPI" to "true",
                     ),
                 kafkaConfig = kafkaConfig,
                 spedisjonClient = FakeSpedisjon().client,
                 spleisClient = FakeSpleis().client,
+                personProvider = FakePersonProvider(),
+                tilgangskontroll = FakeTilgangskontroll(),
             )
         }
         ventTil("applikasjonen er klar") { statuskode("/isready") == 200 }
@@ -77,6 +85,13 @@ internal class AppTest {
     fun `svarer på helsesjekker`() {
         assertEquals(200, statuskode("/isalive"))
         assertEquals(200, statuskode("/isready"))
+    }
+
+    @Test
+    fun `REST-endepunktet er registrert og krever autentisering`() {
+        assertEquals(401, statuskode("/api/personer/${UUID.randomUUID()}/rettighetskategorier/${UUID.randomUUID()}"))
+        assertEquals(404, statuskode("/api/openapi.json"))
+        assertEquals(404, statuskode("/api/swagger"))
     }
 
     @Test

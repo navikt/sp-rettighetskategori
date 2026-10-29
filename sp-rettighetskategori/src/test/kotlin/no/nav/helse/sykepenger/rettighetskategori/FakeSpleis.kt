@@ -3,6 +3,7 @@ package no.nav.helse.sykepenger.rettighetskategori
 import com.github.navikt.tbd_libs.mock.MockHttpResponse
 import com.github.navikt.tbd_libs.mock.bodyAsString
 import tools.jackson.module.kotlin.jacksonObjectMapper
+import java.io.IOException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.LocalDate
@@ -12,6 +13,7 @@ import java.util.UUID
 internal class FakeSpleis {
     private val rettighetskategorier = mutableMapOf<String, MutableList<Map<String, Any>>>()
     private var feiler = false
+    private var nettverksfeil = false
 
     var antallKall = 0
         private set
@@ -26,6 +28,10 @@ internal class FakeSpleis {
 
     fun feiler() {
         feiler = true
+    }
+
+    fun nettverksfeil() {
+        nettverksfeil = true
     }
 
     fun rettighetskategori(
@@ -57,6 +63,7 @@ internal class FakeSpleis {
         }
         check(request.headers().firstValue("Authorization").orElse(null) == "Bearer token") { "Mangler token i kall til spleis-api" }
         antallKall++
+        if (nettverksfeil) throw IOException("Forbindelsen til Spleis feilet")
         if (feiler) return MockHttpResponse("""{"detail":"spleis-api er nede"}""", 503)
         val fødselsnummer = objectMapper.readTree(request.bodyAsString()).path("fødselsnummer").asString()
         val body = mapOf("rettighetskategorier" to rettighetskategorier[fødselsnummer].orEmpty())

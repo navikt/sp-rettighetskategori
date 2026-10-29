@@ -4,6 +4,7 @@ import com.github.navikt.tbd_libs.azure.AzureTokenProvider
 import com.github.navikt.tbd_libs.result_object.getOrThrow
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
+import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -32,8 +33,16 @@ internal class SpleisClient(
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(mapOf("fødselsnummer" to fødselsnummer))))
                 .build()
 
-        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
-        check(response.statusCode() == 200) { "Uventet svar fra spleis-api: HTTP ${response.statusCode()}" }
+        val response =
+            try {
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            } catch (ex: IOException) {
+                throw SpleisClientException("Klarte ikke kontakte spleis-api", ex)
+            } catch (ex: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw SpleisClientException("Kall til spleis-api ble avbrutt", ex)
+            }
+        if (response.statusCode() != 200) throw SpleisClientException("Uventet svar fra spleis-api: HTTP ${response.statusCode()}")
         return objectMapper.readValue<RettighetskategorierResponse>(response.body()).rettighetskategorier.map { it.tilDomene() }
     }
 
@@ -84,3 +93,8 @@ internal class SpleisClient(
         val forkastede: List<String>,
     )
 }
+
+internal class SpleisClientException(
+    message: String,
+    cause: Throwable? = null,
+) : RuntimeException(message, cause)

@@ -1,9 +1,15 @@
 package no.nav.helse.sykepenger.rettighetskategori
 
+import com.github.navikt.tbd_libs.access_token.TexasClient
 import com.github.navikt.tbd_libs.azure.createAzureTokenClientFromEnvironment
 import com.github.navikt.tbd_libs.kafka.AivenConfig
 import com.github.navikt.tbd_libs.kafka.Config
 import com.github.navikt.tbd_libs.kafka.ConsumerProducerFactory
+import com.github.navikt.tbd_libs.personpseudoid.PersonPseudoIdProvider
+import com.github.navikt.tbd_libs.personpseudoid.ValkeyPersonPseudoIdProvider
+import com.github.navikt.tbd_libs.populasjonstilgang.api.PopulasjonstilgangskontrollProvider
+import com.github.navikt.tbd_libs.populasjonstilgang.client.PopulasjonstilgangConfig
+import com.github.navikt.tbd_libs.populasjonstilgang.client.tilgangsmaskinenClient
 import com.github.navikt.tbd_libs.rapids_and_rivers_api.RapidsConnection
 import com.github.navikt.tbd_libs.spedisjon.SpedisjonClient
 import com.zaxxer.hikari.HikariConfig
@@ -11,6 +17,10 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import no.nav.helse.rapids_rivers.RapidApplication
+import no.nav.helse.sykepenger.rettighetskategori.rest.AzureAdConfig
+import no.nav.helse.sykepenger.rettighetskategori.rest.Tilgangsgrupper
+import no.nav.helse.sykepenger.rettighetskategori.rest.configureJwtAuthentication
+import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
 import no.nav.sykepenger.libs.logging.loggInfo
 import org.flywaydb.core.Flyway
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -30,6 +40,8 @@ fun main() {
                 tokenProvider = tokenProvider,
             ),
         spleisClient = SpleisClient.fraMiljø(env, HttpClient.newHttpClient(), tokenProvider),
+        personProvider = ValkeyPersonPseudoIdProvider.fraEnv("personpseudoid", env),
+        tilgangskontroll = PopulasjonstilgangConfig.fraEnv(env).tilgangsmaskinenClient(TexasClient.fromEnv()),
     )
 }
 
@@ -38,6 +50,8 @@ internal fun launchApplication(
     kafkaConfig: Config,
     spedisjonClient: SpedisjonClient,
     spleisClient: SpleisClient,
+    personProvider: PersonPseudoIdProvider,
+    tilgangskontroll: PopulasjonstilgangskontrollProvider,
 ) {
     val dataSource =
         HikariDataSource(
@@ -50,6 +64,8 @@ internal fun launchApplication(
                 idleTimeout = Duration.ofMinutes(10).toMillis()
             },
         )
+    val repository = RettighetskategoriRepository(dataSource)
+    val backfill = Backfill(spleisClient, repository)
 
     RapidApplication
         .create(
@@ -58,6 +74,13 @@ internal fun launchApplication(
             builder = {
                 env["HTTP_PORT"]?.toInt()?.let(::withHttpPort)
                 withKtorModule {
+                    configureJwtAuthentication(AzureAdConfig.fraEnv(env), Tilgangsgrupper.fraEnv(env))
+                    configureRestApi(
+                        repository,
+                        backfill,
+                        personProvider,
+                        tilgangskontroll,
+                    )
                     monitor.subscribe(ApplicationStarted) {
                         loggInfo("Migrerer database")
                         Flyway

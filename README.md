@@ -9,6 +9,32 @@ Hver søknad gir en yrkesaktivitet ut fra søknadstypen og `arbeidssituasjon`, p
 
 Hvis appen ikke klarer å avgjøre kategorien, svarer den ikke på behovet, og feilen logges. Det skjer for eksempel når Spedisjon ikke svarer eller mangler en søknad, og når en søknad gjelder en annen yrkesaktivitet, som frilanser eller arbeidsledig.
 
+## Oppslag fra Speil
+
+`GET /api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}` henter én avgjørelse. Svaret inneholder `id`, `skjæringstidspunkt`, `hovedkategori`, `kilde` og `vurderingstidspunkt`, men ikke fødselsnummer eller søknader. Hovedkategoriene i REST-API-et bruker ASCII (`NAERINGSDRIVENDE`). Tidspunktet er i UTC.
+
+Kallet krever et Azure AD-token med appen som audience og claimene `NAVident` og `oid`. Gruppene i `TILGANG_LES` og `TILGANG_SKRIV` gir lesetilgang. Begge variablene tar kommaseparerte gruppe-ID-er. Appen slår opp pseudo-ID-en i Valkey-instansen `personpseudoid` og kontrollerer kjernetilgang gjennom tilgangsmaskinen med saksbehandlerens token, vekslet av Texas.
+
+En ukjent rettighetskategori-ID utløser backfill fra Spleis og et nytt oppslag i samme kall. Kjente ID-er krever ikke at Spleis svarer. En ID for en annen person gir 404 uten backfill.
+
+| Status | Betydning |
+|---|---|
+| 400 | Rettighetskategori-ID-en er ikke en gyldig UUID |
+| 401 | Tokenet mangler eller er ugyldig. Svaret har ingen body |
+| 403 | Saksbehandleren mangler lesetilgang, eller tilgangsmaskinen avslår eller feiler |
+| 404 | Personen eller avgjørelsen finnes ikke for oppslaget |
+| 503 | Spleis svarte med feil eller kunne ikke kontaktes under backfill |
+
+Feilsvar unntatt 401 har typen `application/problem+json`. Årsaken til en 403 logges på debug-nivå, uten personopplysninger i meldingsteksten.
+
+API-et bruker vanlige Ktor-ruter, uten et eget REST-rammeverk, OpenAPI eller Swagger UI.
+
+Bygg og kjør testene:
+
+```shell
+./gradlew build -x addKtlintFormatGitPreCommitHook
+```
+
 ## Backfill av historikken fra Spleis
 
 Spleis har rettighetskategori-ID-er på vilkårsgrunnlag som ble laget før denne appen fantes. Med backfill lager appen avgjørelser for dem med data fra `POST /api/rettighetskategorier` i spleis-api. Det skjer ved hver `person_avstemming` og når `RettighetskategoriResultat` gjelder en ID appen ikke kjenner.
