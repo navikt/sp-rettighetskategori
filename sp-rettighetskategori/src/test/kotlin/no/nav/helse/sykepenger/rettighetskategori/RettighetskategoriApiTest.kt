@@ -13,9 +13,14 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.testing.testApplication
-import no.nav.helse.sykepenger.rettighetskategori.rest.AZURE_AD_AUTHENTICATION_NAME
-import no.nav.helse.sykepenger.rettighetskategori.rest.SaksbehandlerPrincipal
 import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
+import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_AUTHENTICATION_NAME
+import no.nav.sykepenger.libs.ktor.auth.AccessToken
+import no.nav.sykepenger.libs.ktor.auth.NavIdent
+import no.nav.sykepenger.libs.ktor.auth.Saksbehandler
+import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerOid
+import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerPrincipal
+import no.nav.sykepenger.libs.ktor.auth.Tilgang
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -73,11 +78,18 @@ internal class RettighetskategoriApiTest {
     private fun Application.settOpp() {
         install(Authentication) {
             provider(AZURE_AD_AUTHENTICATION_NAME) {
-                authenticate { context -> context.principal(SaksbehandlerPrincipal("Z999999", "oid", harLesetilgang, "token")) }
+                authenticate { context -> context.principal(saksbehandlerPrincipal()) }
             }
         }
         configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll)
     }
+
+    private fun saksbehandlerPrincipal() =
+        SaksbehandlerPrincipal(
+            Saksbehandler(NavIdent("Z999999"), SaksbehandlerOid("oid"), "Saksbehandler"),
+            if (harLesetilgang) setOf(Tilgang.Les) else emptySet(),
+            AccessToken("token"),
+        )
 
     @Test
     fun `OpenAPI og Swagger finnes ikke`() =

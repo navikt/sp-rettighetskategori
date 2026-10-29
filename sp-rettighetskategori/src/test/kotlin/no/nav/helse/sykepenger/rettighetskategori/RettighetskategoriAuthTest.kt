@@ -10,11 +10,11 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
-import no.nav.helse.sykepenger.rettighetskategori.rest.AzureAdConfig
-import no.nav.helse.sykepenger.rettighetskategori.rest.Tilgangsgrupper
-import no.nav.helse.sykepenger.rettighetskategori.rest.configureJwtAuthentication
 import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
 import no.nav.security.mock.oauth2.MockOAuth2Server
+import no.nav.sykepenger.libs.ktor.auth.AzureAdConfig
+import no.nav.sykepenger.libs.ktor.auth.TilgangsgrupperTilTilganger
+import no.nav.sykepenger.libs.ktor.auth.configureJwtAuthentication
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -102,7 +102,7 @@ internal class RettighetskategoriAuthTest {
         application {
             configureJwtAuthentication(
                 AzureAdConfig("sp-rettighetskategori", oauth.issuerUrl("azure").toString(), oauth.jwksUrl("azure").toString()),
-                Tilgangsgrupper.fraEnv(
+                TilgangsgrupperTilTilganger.fraEnv(
                     mapOf("TILGANG_LES" to "annen-lesegruppe, les ", "TILGANG_SKRIV" to "annen-skrivegruppe, skriv "),
                 ),
             )

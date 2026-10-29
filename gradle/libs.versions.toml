@@ -12,8 +12,8 @@ cloud-sql-postgres-socket-factory = "com.google.cloud.sql:postgres-socket-factor
 kotliquery = "com.github.seratch:kotliquery:1.9.1"
 postgresql = "org.postgresql:postgresql:42.7.14"
 rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026091610031789545782"
+sykepengerLibs-ktor-auth = "no.nav.sykepenger.libs:ktor-auth:20261029.1425"
 sykepengerLibs-logging = "no.nav.sykepenger.libs:logging:20261013.1719"
-ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
 ktor-serialization-jackson3 = { module = "io.ktor:ktor-serialization-jackson3", version.ref = "ktor" }

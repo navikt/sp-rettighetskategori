@@ -17,10 +17,10 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import no.nav.helse.rapids_rivers.RapidApplication
-import no.nav.helse.sykepenger.rettighetskategori.rest.AzureAdConfig
-import no.nav.helse.sykepenger.rettighetskategori.rest.Tilgangsgrupper
-import no.nav.helse.sykepenger.rettighetskategori.rest.configureJwtAuthentication
 import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
+import no.nav.sykepenger.libs.ktor.auth.AzureAdConfig
+import no.nav.sykepenger.libs.ktor.auth.TilgangsgrupperTilTilganger
+import no.nav.sykepenger.libs.ktor.auth.configureJwtAuthentication
 import no.nav.sykepenger.libs.logging.loggInfo
 import org.flywaydb.core.Flyway
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -74,7 +74,7 @@ internal fun launchApplication(
             builder = {
                 env["HTTP_PORT"]?.toInt()?.let(::withHttpPort)
                 withKtorModule {
-                    configureJwtAuthentication(AzureAdConfig.fraEnv(env), Tilgangsgrupper.fraEnv(env))
+                    configureJwtAuthentication(AzureAdConfig.fraEnv(env), TilgangsgrupperTilTilganger.fraEnv(env))
                     configureRestApi(
                         repository,
                         backfill,

@@ -24,6 +24,9 @@ import no.nav.helse.sykepenger.rettighetskategori.Kilde
 import no.nav.helse.sykepenger.rettighetskategori.Rettighetskategori
 import no.nav.helse.sykepenger.rettighetskategori.RettighetskategoriRepository
 import no.nav.helse.sykepenger.rettighetskategori.SpleisClientException
+import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_AUTHENTICATION_NAME
+import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerPrincipal
+import no.nav.sykepenger.libs.ktor.auth.Tilgang
 import no.nav.sykepenger.libs.logging.navngittLogger
 import tools.jackson.core.JacksonException
 import java.io.IOException
@@ -96,7 +99,7 @@ private fun Route.rettighetskategoriApi(
 ) {
     get("/api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}") {
         val principal = call.principal<SaksbehandlerPrincipal>() ?: return@get call.respond(HttpStatusCode.Unauthorized)
-        if (!principal.harLesetilgang) {
+        if (!principal.harTilgang(Tilgang.Les)) {
             logger.debug("403: saksbehandler mangler lesetilgang")
             return@get call.respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang")
         }
@@ -108,7 +111,7 @@ private fun Route.rettighetskategoriApi(
                 ?: return@get call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
         val tilgang =
             try {
-                tilgangskontroll.kontrollerKjerneTilgang(principal.accessToken, ident.value)
+                tilgangskontroll.kontrollerKjerneTilgang(principal.accessToken.value, ident.value)
             } catch (ex: IOException) {
                 return@get call.respondTilgangsfeil(ex)
             } catch (ex: AccessTokenException) {
