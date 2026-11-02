@@ -81,6 +81,18 @@ internal class PersonAvstemmingRiverTest {
     }
 
     @Test
+    fun `avstemming hopper over ID-er uten aktive yrkesaktiviteter`() {
+        val aktiv = spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"))
+        spleis.rettighetskategori(FØDSELSNUMMER, forkastede = listOf("ARBEIDSTAKER"))
+        spleis.rettighetskategori(FØDSELSNUMMER, harSelvstendigInntekt = true)
+
+        rapid.sendTestMessage(personAvstemming(), FØDSELSNUMMER)
+
+        assertEquals(listOf(aktiv), lagredeRader().map { it.id })
+        assertEquals(listOf(TestDatabase.Logginnslag(FØDSELSNUMMER, antallFraSpleis = 3, antallNye = 1)), TestDatabase.migreringslogg())
+    }
+
+    @Test
     fun `avstemming uten nye ID-er føres ikke i migreringsloggen`() {
         spleis.rettighetskategori(FØDSELSNUMMER, aktive = listOf("ARBEIDSTAKER"))
         rapid.sendTestMessage(personAvstemming(), FØDSELSNUMMER)

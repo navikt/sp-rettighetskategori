@@ -73,7 +73,6 @@ internal class SpleisClient(
         val skjæringstidspunkt: LocalDate,
         val opprettet: LocalDateTime,
         val kilde: SpleisRettighetskategori.Kilde,
-        val harSelvstendigInntekt: Boolean,
         val yrkesaktivitetstyper: YrkesaktivitetstyperDto,
     ) {
         fun tilDomene() =
@@ -82,15 +81,12 @@ internal class SpleisClient(
                 skjæringstidspunkt = skjæringstidspunkt,
                 opprettet = opprettet.atZone(ZoneId.of("Europe/Oslo")).toInstant(),
                 kilde = kilde,
-                harSelvstendigInntekt = harSelvstendigInntekt,
                 aktive = yrkesaktivitetstyper.aktive,
-                forkastede = yrkesaktivitetstyper.forkastede,
             )
     }
 
     private data class YrkesaktivitetstyperDto(
         val aktive: List<String>,
-        val forkastede: List<String>,
     )
 }
 

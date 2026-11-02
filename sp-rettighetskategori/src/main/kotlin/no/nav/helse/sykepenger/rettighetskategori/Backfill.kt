@@ -7,11 +7,16 @@ internal class Backfill(
     private val repository: RettighetskategoriRepository,
 ) {
     fun backfill(fødselsnummer: String): List<Rettighetskategori> {
-        val rettighetskategorier = spleisClient.rettighetskategorier(fødselsnummer).map { it.tilRettighetskategori(fødselsnummer) }
-        val antallNye = repository.lagreBackfill(fødselsnummer, rettighetskategorier)
+        val fraSpleis = spleisClient.rettighetskategorier(fødselsnummer)
+        val rettighetskategorier =
+            fraSpleis
+                .filter { it.harAktiveYrkesaktiviteter }
+                .map { it.tilRettighetskategori(fødselsnummer) }
+        val antallNye = repository.lagreBackfill(fødselsnummer, rettighetskategorier, fraSpleis.size)
         loggInfo(
             "Backfill av rettighetskategorier fra Spleis er ferdig",
-            "antallFraSpleis" to rettighetskategorier.size.toString(),
+            "antallFraSpleis" to fraSpleis.size.toString(),
+            "antallUtenAktiveYrkesaktiviteter" to (fraSpleis.size - rettighetskategorier.size).toString(),
             "antallNye" to antallNye.toString(),
         )
         return rettighetskategorier

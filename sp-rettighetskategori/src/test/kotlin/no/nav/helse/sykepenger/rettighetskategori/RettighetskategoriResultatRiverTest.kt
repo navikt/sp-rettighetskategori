@@ -52,6 +52,27 @@ internal class RettighetskategoriResultatRiverTest {
         assertEquals(person.hovedkategori, hovedkategoriFor(rettighetskategoriId.toString()))
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("utenAktiveYrkesaktiviteter")
+    fun `ID fra Spleis uten aktive yrkesaktiviteter backfilles ikke`(
+        @Suppress("unused") beskrivelse: String,
+        person: HistoriskPerson,
+    ) {
+        val rettighetskategoriId =
+            spleis.rettighetskategori(
+                FØDSELSNUMMER,
+                aktive = person.aktive,
+                forkastede = person.forkastede,
+                kilde = person.kilde,
+                harSelvstendigInntekt = person.harSelvstendigInntekt,
+            )
+
+        rapid.sendTestMessage(rettighetskategoriResultatBehov(rettighetskategoriId), FØDSELSNUMMER)
+
+        assertEquals(0, rapid.inspektør.size)
+        assertEquals(emptyList<TestDatabase.Logginnslag>(), TestDatabase.migreringslogg())
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["FRILANS", "ARBEIDSLEDIG"])
     fun `yrkesaktivitetstype som ikke gir støttet hovedkategori gir ubesvart behov`(yrkesaktivitetstype: String) {
@@ -139,7 +160,7 @@ internal class RettighetskategoriResultatRiverTest {
         val forkastede: List<String> = emptyList(),
         val kilde: String = "SPLEIS",
         val harSelvstendigInntekt: Boolean = false,
-        val hovedkategori: String,
+        val hovedkategori: String? = null,
     )
 
     private companion object {
@@ -167,22 +188,21 @@ internal class RettighetskategoriResultatRiverTest {
                     HistoriskPerson(aktive = listOf("ARBEIDSTAKER"), forkastede = listOf("ARBEIDSTAKER", "SELVSTENDIG"), hovedkategori = "ARBEIDSTAKER"),
                 ),
                 Arguments.of(
-                    "bare forkastede perioder",
-                    HistoriskPerson(forkastede = listOf("SELVSTENDIG"), hovedkategori = "SELVSTENDIG_NÆRINGSDRIVENDE"),
-                ),
-                Arguments.of(
                     "vilkårsgrunnlag fra Infotrygd",
                     HistoriskPerson(aktive = listOf("ARBEIDSTAKER"), kilde = "INFOTRYGD", hovedkategori = "ARBEIDSTAKER"),
                 ),
+            )
+
+        @JvmStatic
+        fun utenAktiveYrkesaktiviteter() =
+            listOf(
+                Arguments.of("bare forkastede perioder", HistoriskPerson(forkastede = listOf("SELVSTENDIG"))),
                 Arguments.of(
-                    "vilkårsgrunnlag fra Infotrygd med bare forkastede selvstendig-perioder",
-                    HistoriskPerson(forkastede = listOf("SELVSTENDIG"), kilde = "INFOTRYGD", hovedkategori = "ARBEIDSTAKER"),
+                    "vilkårsgrunnlag fra Infotrygd med bare forkastede perioder",
+                    HistoriskPerson(forkastede = listOf("ARBEIDSTAKER"), kilde = "INFOTRYGD"),
                 ),
-                Arguments.of(
-                    "uten perioder, med selvstendig inntekt",
-                    HistoriskPerson(harSelvstendigInntekt = true, hovedkategori = "SELVSTENDIG_NÆRINGSDRIVENDE"),
-                ),
-                Arguments.of("uten perioder og uten selvstendig inntekt", HistoriskPerson(hovedkategori = "ARBEIDSTAKER")),
+                Arguments.of("uten perioder, med selvstendig inntekt", HistoriskPerson(harSelvstendigInntekt = true)),
+                Arguments.of("uten perioder og uten selvstendig inntekt", HistoriskPerson()),
             )
 
         @Language("JSON")

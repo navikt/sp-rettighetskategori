@@ -9,26 +9,22 @@ internal data class SpleisRettighetskategori(
     val skjæringstidspunkt: LocalDate,
     val opprettet: Instant,
     val kilde: Kilde,
-    val harSelvstendigInntekt: Boolean,
     val aktive: List<String>,
-    val forkastede: List<String>,
 ) {
     enum class Kilde { SPLEIS, INFOTRYGD }
 
+    val harAktiveYrkesaktiviteter: Boolean
+        get() = aktive.isNotEmpty()
+
     val hovedkategori: Hovedkategori
         get() =
-            when {
-                kilde == Kilde.INFOTRYGD -> Hovedkategori.ARBEIDSTAKER
-                aktive.isNotEmpty() -> hovedkategori(aktive)
-                forkastede.isNotEmpty() -> hovedkategori(forkastede)
-                harSelvstendigInntekt -> Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE
-                else -> Hovedkategori.ARBEIDSTAKER
+            when (kilde) {
+                Kilde.INFOTRYGD -> Hovedkategori.ARBEIDSTAKER
+                Kilde.SPLEIS ->
+                    checkNotNull(Hovedkategori.avgjør(aktive.map(::yrkesaktivitet).toSet())) {
+                        "Rettighetskategori $id har yrkesaktivitetstypene $aktive, som ikke gir noen hovedkategori"
+                    }
             }
-
-    private fun hovedkategori(yrkesaktivitetstyper: List<String>) =
-        checkNotNull(Hovedkategori.avgjør(yrkesaktivitetstyper.map(::yrkesaktivitet).toSet())) {
-            "Rettighetskategori $id har yrkesaktivitetstypene $yrkesaktivitetstyper, som ikke gir noen hovedkategori"
-        }
 
     fun tilRettighetskategori(fødselsnummer: String) =
         Rettighetskategori.fraSpleis(

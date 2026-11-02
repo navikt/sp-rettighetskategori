@@ -39,10 +39,10 @@ Bygg og kjør testene:
 
 Spleis har rettighetskategori-ID-er på vilkårsgrunnlag som ble laget før denne appen fantes. Med backfill lager appen avgjørelser for dem med data fra `POST /api/rettighetskategorier` i spleis-api. Det skjer ved hver `person_avstemming` og når `RettighetskategoriResultat` gjelder en ID appen ikke kjenner.
 
+- ID-er uten aktive perioder blir ikke lagret.
 - Vilkårsgrunnlag fra Infotrygd gir `ARBEIDSTAKER`.
-- Ellers gir yrkesaktivitetstypene til de aktive periodene som bruker vilkårsgrunnlaget, hovedkategorien. Finnes ingen aktive perioder, brukes de forkastede.
-- Finnes ingen perioder, gir selvstendig inntekt i inntektsgrunnlaget `SELVSTENDIG_NÆRINGSDRIVENDE` og ellers `ARBEIDSTAKER`.
-- Frilanser eller arbeidsledig blant periodene som brukes, gir feil, og ingenting lagres for personen.
+- Ellers gir yrkesaktivitetstypene til de aktive periodene som bruker vilkårsgrunnlaget, hovedkategorien.
+- Frilanser eller arbeidsledig blant de aktive periodene gir feil, og ingenting lagres for personen.
 
 Avgjørelser fra backfill har kilde `spleis`, vurderingstidspunktet fra Spleis og ingen søknader. En ID som er lagret fra før, blir ikke endret. Hver backfill som lagrer minst én ny ID, føres i tabellen `migreringslogg` med antall ID-er fra Spleis og antall nye.
 

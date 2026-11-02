@@ -19,12 +19,13 @@ internal class RettighetskategoriRepository(
     fun lagreBackfill(
         fødselsnummer: String,
         rettighetskategorier: List<Rettighetskategori>,
+        antallFraSpleis: Int,
     ): Int =
         sessionOf(dataSource).use { session ->
             session.transaction { tx ->
                 sjekkAtIngenTilhørerAndrePersoner(tx, fødselsnummer, rettighetskategorier)
                 val antallNye = rettighetskategorier.sumOf { lagre(tx, it) }
-                if (antallNye > 0) loggBackfill(tx, fødselsnummer, rettighetskategorier.size, antallNye)
+                if (antallNye > 0) loggBackfill(tx, fødselsnummer, antallFraSpleis, antallNye)
                 antallNye
             }
         }
