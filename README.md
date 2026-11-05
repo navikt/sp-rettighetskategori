@@ -5,13 +5,19 @@ Avgjør rettighetskategorien for et sykefraværstilfelle. Appen svarer på to be
 - `Rettighetskategori`: inn kommer `fødselsnummer`, `Rettighetskategori.skjæringstidspunkt` og `Rettighetskategori.søknader`, som er referanse-ID-ene (`@id`) til de sendte søknadene. Appen henter søknadene fra Spedisjon, avgjør hovedkategorien og lagrer avgjørelsen. Løsningen har `id` og `hovedkategori`.
 - `RettighetskategoriResultat`: inn kommer `fødselsnummer` og `RettighetskategoriResultat.rettighetskategoriId`. Løsningen har `hovedkategori`. Kjenner ikke appen ID-en, kjører den backfill for personen fra Spleis først.
 
-Hver søknad gir en yrkesaktivitet ut fra søknadstypen og `arbeidssituasjon`, på samme måte som i Spleis. Appen gir hovedkategoriene `ARBEIDSTAKER`, `SELVSTENDIG_NÆRINGSDRIVENDE` og `ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE`. Får appen samme søknader for samme person og skjæringstidspunkt som i den gjeldende avgjørelsen, svarer den med den gjeldende avgjørelsen og lagrer ingen ny. Gjeldende avgjørelse er den med nyest vurderingstidspunkt.
+Hver søknad gir en yrkesaktivitet ut fra søknadstypen og `arbeidssituasjon`, på samme måte som i Spleis. Appen gir hovedkategoriene `ARBEIDSTAKER`, `SELVSTENDIG_NÆRINGSDRIVENDE` og `ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE`. En søknad av typen `sendt_søknad_selvstendig` med `arbeidssituasjon = JORDBRUKER` gir i tillegg tilleggskategorien `JORDBRUKER`. Tilleggskategoriene sendes ikke i løsningen.
+
+Appen skiller mellom en avgjørelse (tabellen `rettighetskategori`) og vurderingene bak den (tabellen `vurdering`), slik ADR 0006 i helse-sas-meta beskriver. Konklusjonen i en avgjørelse er hovedkategorien og tilleggskategoriene. Gjeldende avgjørelse er den med nyest vurderingstidspunkt for personen og skjæringstidspunktet.
+
+- Samme søknader som i siste vurdering: appen svarer med gjeldende avgjørelse og lagrer ingenting.
+- Nye søknader med samme konklusjon: vurderingen føyes til gjeldende avgjørelse, og ID-en blir den samme.
+- Nye søknader med en annen konklusjon: appen lagrer en ny automatisk avgjørelse med ny ID.
 
 Hvis appen ikke klarer å avgjøre kategorien, svarer den ikke på behovet, og feilen logges. Det skjer for eksempel når Spedisjon ikke svarer eller mangler en søknad, og når en søknad gjelder en annen yrkesaktivitet, som frilanser eller arbeidsledig.
 
 ## Oppslag fra Speil
 
-`GET /api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}` henter én avgjørelse. Svaret inneholder `id`, `skjæringstidspunkt`, `hovedkategori`, `kilde` og `vurderingstidspunkt`, men ikke fødselsnummer eller søknader. Hovedkategoriene i REST-API-et bruker ASCII (`NAERINGSDRIVENDE`). Tidspunktet er i UTC.
+`GET /api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}` henter én avgjørelse. Svaret inneholder `id`, `skjæringstidspunkt`, `hovedkategori`, `tilleggskategorier`, `kilde` og `vurderingstidspunkt`, men ikke fødselsnummer eller søknader. `tilleggskategorier` er en liste som kan inneholde `JORDBRUKER`, og er tom når personen ikke har noen. Hovedkategoriene i REST-API-et bruker ASCII (`NAERINGSDRIVENDE`). Tidspunktet er i UTC.
 
 Kallet krever et Azure AD-token med appen som audience og claimene `NAVident` og `oid`. Gruppene i `TILGANG_LES` og `TILGANG_SKRIV` gir lesetilgang. Begge variablene tar kommaseparerte gruppe-ID-er. Appen slår opp pseudo-ID-en i Valkey-instansen `personpseudoid` og kontrollerer kjernetilgang gjennom tilgangsmaskinen med saksbehandlerens token, vekslet av Texas.
 
@@ -44,7 +50,7 @@ Spleis har rettighetskategori-ID-er på vilkårsgrunnlag som ble laget før denn
 - Ellers gir yrkesaktivitetstypene til de aktive periodene som bruker vilkårsgrunnlaget, hovedkategorien.
 - Frilanser eller arbeidsledig blant de aktive periodene gir feil, og ingenting lagres for personen.
 
-Avgjørelser fra backfill har kilde `spleis`, vurderingstidspunktet fra Spleis og ingen søknader. En ID som er lagret fra før, blir ikke endret. Hver backfill som lagrer minst én ny ID, føres i tabellen `migreringslogg` med antall ID-er fra Spleis og antall nye.
+Avgjørelser fra backfill har kilde `spleis`, vurderingstidspunktet fra Spleis, ingen tilleggskategorier og ingen vurderinger. En ID som er lagret fra før, blir ikke endret. Hver backfill som lagrer minst én ny ID, føres i tabellen `migreringslogg` med antall ID-er fra Spleis og antall nye.
 
 ## Moduler
 

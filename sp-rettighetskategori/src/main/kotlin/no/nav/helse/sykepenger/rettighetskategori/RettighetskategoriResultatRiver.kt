@@ -45,8 +45,12 @@ internal class RettighetskategoriResultatRiver(
             try {
                 val id = UUID.fromString(rettighetskategoriId)
                 val hovedkategori =
-                    repository.finn(id)?.hovedkategori
-                        ?: backfill.backfill(fødselsnummer).find { it.id == id }?.hovedkategori
+                    repository.finn(id)?.konklusjon?.hovedkategori
+                        ?: backfill
+                            .backfill(fødselsnummer)
+                            .find { it.id == id }
+                            ?.konklusjon
+                            ?.hovedkategori
                         ?: error("Fant ikke rettighetskategori med id $rettighetskategoriId, heller ikke i Spleis")
                 packet["@løsning"] = mapOf(BEHOV to mapOf("hovedkategori" to hovedkategori.name))
                 loggInfo(

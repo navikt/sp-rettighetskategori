@@ -13,7 +13,70 @@ internal class RettighetskategoriRepository(
     private val dataSource: DataSource,
 ) {
     fun lagre(rettighetskategori: Rettighetskategori) {
-        sessionOf(dataSource).use { session -> lagre(session, rettighetskategori) }
+        sessionOf(dataSource).use { session -> lagre(session, rettighetskategori, emptyList()) }
+    }
+
+    fun lagreAutomatisk(
+        rettighetskategori: Rettighetskategori,
+        vurdering: Vurdering,
+    ) {
+        sessionOf(dataSource).use { session ->
+            session.transaction { tx ->
+                lagre(tx, rettighetskategori, vurdering.søknader)
+                føyTilVurdering(tx, rettighetskategori.id, vurdering)
+            }
+        }
+    }
+
+    fun føyTilVurdering(
+        rettighetskategoriId: UUID,
+        vurdering: Vurdering,
+    ) {
+        sessionOf(dataSource).use { session -> føyTilVurdering(session, rettighetskategoriId, vurdering) }
+    }
+
+    private fun føyTilVurdering(
+        session: Session,
+        rettighetskategoriId: UUID,
+        vurdering: Vurdering,
+    ) {
+        @Language("PostgreSQL")
+        val sql = """
+            INSERT INTO vurdering (rettighetskategori_id, søknader, vurderingstidspunkt)
+            VALUES (:rettighetskategoriId, :soknader, :vurderingstidspunkt)
+        """
+        session.run(
+            queryOf(
+                sql,
+                mapOf(
+                    "rettighetskategoriId" to rettighetskategoriId,
+                    "soknader" to session.createArrayOf("uuid", vurdering.søknader),
+                    "vurderingstidspunkt" to vurdering.vurderingstidspunkt,
+                ),
+            ).asUpdate,
+        )
+    }
+
+    fun søknaderISisteVurdering(
+        fødselsnummer: String,
+        skjæringstidspunkt: LocalDate,
+    ): Set<UUID>? {
+        @Language("PostgreSQL")
+        val sql = """
+            SELECT v.søknader
+            FROM vurdering v
+            JOIN rettighetskategori r ON r.id = v.rettighetskategori_id
+            WHERE r.fødselsnummer = :fodselsnummer AND r.skjæringstidspunkt = :skjaeringstidspunkt
+            ORDER BY v.løpenummer DESC
+            LIMIT 1
+        """
+        return sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf(sql, mapOf("fodselsnummer" to fødselsnummer, "skjaeringstidspunkt" to skjæringstidspunkt))
+                    .map { it.array<UUID>("søknader").toSet() }
+                    .asSingle,
+            )
+        }
     }
 
     fun lagreBackfill(
@@ -24,7 +87,7 @@ internal class RettighetskategoriRepository(
         sessionOf(dataSource).use { session ->
             session.transaction { tx ->
                 sjekkAtIngenTilhørerAndrePersoner(tx, fødselsnummer, rettighetskategorier)
-                val antallNye = rettighetskategorier.sumOf { lagre(tx, it) }
+                val antallNye = rettighetskategorier.sumOf { lagre(tx, it, emptyList()) }
                 if (antallNye > 0) loggBackfill(tx, fødselsnummer, antallFraSpleis, antallNye)
                 antallNye
             }
@@ -66,14 +129,16 @@ internal class RettighetskategoriRepository(
         check(ider.isEmpty()) { "Rettighetskategoriene $ider er allerede lagret for en annen person" }
     }
 
+    // Søknadene ligger i vurdering. Kolonnen skrives fortsatt så poder med forrige versjon virker under utrulling.
     private fun lagre(
         session: Session,
         rettighetskategori: Rettighetskategori,
+        søknader: List<UUID>,
     ): Int {
         @Language("PostgreSQL")
         val sql = """
-            INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader)
-            VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, :kilde, :vurderingstidspunkt, :soknader)
+            INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, tilleggskategorier, kilde, vurderingstidspunkt, søknader)
+            VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, :tilleggskategorier, :kilde, :vurderingstidspunkt, :soknader)
             ON CONFLICT (id) DO NOTHING
         """
         return session.run(
@@ -83,19 +148,25 @@ internal class RettighetskategoriRepository(
                     "id" to rettighetskategori.id,
                     "fodselsnummer" to rettighetskategori.fødselsnummer,
                     "skjaeringstidspunkt" to rettighetskategori.skjæringstidspunkt,
-                    "hovedkategori" to rettighetskategori.hovedkategori.name,
+                    "hovedkategori" to rettighetskategori.konklusjon.hovedkategori.name,
+                    "tilleggskategorier" to tilleggskategorier(session, rettighetskategori.konklusjon.tilleggskategorier),
                     "kilde" to rettighetskategori.kilde.dbVerdi,
                     "vurderingstidspunkt" to rettighetskategori.vurderingstidspunkt,
-                    "soknader" to session.createArrayOf("uuid", rettighetskategori.søknader),
+                    "soknader" to session.createArrayOf("uuid", søknader),
                 ),
             ).asUpdate,
         )
     }
 
+    private fun tilleggskategorier(
+        session: Session,
+        tilleggskategorier: Set<Tilleggskategori>,
+    ) = session.createArrayOf("text", tilleggskategorier.map { it.name }.sorted())
+
     fun finn(id: UUID): Rettighetskategori? {
         @Language("PostgreSQL")
         val sql = """
-            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader
+            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, tilleggskategorier, kilde, vurderingstidspunkt
             FROM rettighetskategori
             WHERE id = :id
         """
@@ -110,7 +181,7 @@ internal class RettighetskategoriRepository(
     ): Rettighetskategori? {
         @Language("PostgreSQL")
         val sql = """
-            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader
+            SELECT id, fødselsnummer, skjæringstidspunkt, hovedkategori, tilleggskategorier, kilde, vurderingstidspunkt
             FROM rettighetskategori
             WHERE fødselsnummer = :fodselsnummer AND skjæringstidspunkt = :skjaeringstidspunkt
             ORDER BY vurderingstidspunkt DESC
@@ -130,9 +201,12 @@ internal class RettighetskategoriRepository(
             id = row.uuid("id"),
             fødselsnummer = row.string("fødselsnummer"),
             skjæringstidspunkt = row.localDate("skjæringstidspunkt"),
-            hovedkategori = Hovedkategori.valueOf(row.string("hovedkategori")),
+            konklusjon =
+                Konklusjon(
+                    hovedkategori = Hovedkategori.valueOf(row.string("hovedkategori")),
+                    tilleggskategorier = row.array<String>("tilleggskategorier").map(Tilleggskategori::valueOf).toSet(),
+                ),
             kilde = Kilde.fraDbVerdi(row.string("kilde")),
             vurderingstidspunkt = row.instant("vurderingstidspunkt"),
-            søknader = row.array<UUID>("søknader").toList(),
         )
 }

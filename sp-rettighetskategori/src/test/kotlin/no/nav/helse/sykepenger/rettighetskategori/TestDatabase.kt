@@ -10,7 +10,7 @@ internal object TestDatabase {
 
     val dataSource: DataSource = database.dataSource
 
-    fun tøm() = database.tøm("rettighetskategori", "migreringslogg")
+    fun tøm() = database.tøm("vurdering", "rettighetskategori", "migreringslogg")
 
     data class Logginnslag(
         val fødselsnummer: String,

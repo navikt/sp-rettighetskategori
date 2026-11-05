@@ -45,6 +45,10 @@ internal class SlettPersonRiver(
         fødselsnummer: String,
     ) {
         @Language("PostgreSQL")
+        val sqlVurdering = "DELETE FROM vurdering WHERE rettighetskategori_id IN (SELECT id FROM rettighetskategori WHERE fødselsnummer = :fodselsnummer)"
+        tx.run(queryOf(sqlVurdering, mapOf("fodselsnummer" to fødselsnummer)).asUpdate)
+
+        @Language("PostgreSQL")
         val sql = "DELETE FROM rettighetskategori WHERE fødselsnummer = :fodselsnummer"
         tx.run(queryOf(sql, mapOf("fodselsnummer" to fødselsnummer)).asUpdate)
 

@@ -256,7 +256,7 @@ internal class RettighetskategoriApiTest {
         forventetKilde: String,
     ) = testApplication {
         repository.lagre(
-            Rettighetskategori(id, fødselsnummer, LocalDate.parse("2026-01-01"), hovedkategori, kilde, Instant.now(), emptyList()),
+            Rettighetskategori(id, fødselsnummer, LocalDate.parse("2026-01-01"), Konklusjon(hovedkategori, emptySet()), kilde, Instant.now()),
         )
         application { settOpp() }
         val response = client.get(path)
@@ -267,6 +267,24 @@ internal class RettighetskategoriApiTest {
     }
 
     @Test
+    fun `tilleggskategorien jordbruker vises i API-et`() =
+        testApplication {
+            repository.lagre(
+                Rettighetskategori(
+                    id,
+                    fødselsnummer,
+                    LocalDate.parse("2026-01-01"),
+                    Konklusjon(Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE, setOf(Tilleggskategori.JORDBRUKER)),
+                    Kilde.AUTOMATISK,
+                    Instant.now(),
+                ),
+            )
+            application { settOpp() }
+            val json = jacksonObjectMapper().readTree(client.get(path).bodyAsText())
+            assertEquals(jacksonObjectMapper().readTree("""["JORDBRUKER"]"""), json["tilleggskategorier"])
+        }
+
+    @Test
     fun `kjent avgjørelse gir alle kontraktsfeltene uten personopplysninger eller kall til Spleis`() =
         testApplication {
             repository.lagre(
@@ -274,10 +292,9 @@ internal class RettighetskategoriApiTest {
                     id,
                     fødselsnummer,
                     LocalDate.parse("2026-01-01"),
-                    Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE,
+                    Konklusjon(Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE, emptySet()),
                     Kilde.AUTOMATISK,
                     Instant.parse("2026-02-01T10:00:00Z"),
-                    emptyList(),
                 ),
             )
             application { settOpp() }
@@ -291,6 +308,7 @@ internal class RettighetskategoriApiTest {
                       "id":"099b102a-e684-4791-9c60-82bd9d4788d5",
                       "skjæringstidspunkt":"2026-01-01",
                       "hovedkategori":"SELVSTENDIG_NAERINGSDRIVENDE",
+                      "tilleggskategorier":[],
                       "kilde":"AUTOMATISK",
                       "vurderingstidspunkt":"2026-02-01T10:00:00Z"
                     }""",

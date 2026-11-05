@@ -88,19 +88,48 @@ internal class SlettPersonRiverTest {
             )
         }
 
+    @Test
+    fun `sletter vurderingene til personen`() {
+        val fødselsnummer = "01020312345"
+        val annenPerson = "02030412345"
+        lagreRettighetskategori(fødselsnummer)
+        lagreRettighetskategori(annenPerson)
+
+        rapid.sendTestMessage(slettPersonMelding(fødselsnummer))
+
+        assertEquals(0, antallVurderinger(fødselsnummer))
+        assertEquals(1, antallVurderinger(annenPerson))
+    }
+
     private fun lagreRettighetskategori(fødselsnummer: String) {
         sessionOf(Database.dataSource).use {
             it.run(
                 queryOf(
                     """
-                    INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader)
-                    VALUES (gen_random_uuid(), :fodselsnummer, '2018-01-01', 'Arbeidstaker', 'automatisk', now(), ARRAY[gen_random_uuid()])
+                    WITH avgjørelse AS (
+                        INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, kilde, vurderingstidspunkt, søknader)
+                        VALUES (gen_random_uuid(), :fodselsnummer, '2018-01-01', 'ARBEIDSTAKER', 'automatisk', now(), ARRAY[gen_random_uuid()])
+                        RETURNING id, søknader
+                    )
+                    INSERT INTO vurdering (rettighetskategori_id, søknader, vurderingstidspunkt)
+                    SELECT id, søknader, now() FROM avgjørelse
                     """,
                     mapOf("fodselsnummer" to fødselsnummer),
                 ).asUpdate,
             )
         }
     }
+
+    private fun antallVurderinger(fødselsnummer: String) =
+        sessionOf(Database.dataSource).use {
+            it.run(
+                queryOf(
+                    "SELECT COUNT(*) FROM vurdering v JOIN rettighetskategori r ON r.id = v.rettighetskategori_id WHERE r.fødselsnummer = :fodselsnummer",
+                    mapOf("fodselsnummer" to fødselsnummer),
+                ).map { row -> row.int(1) }
+                    .asSingle,
+            )
+        }
 
     private fun antallRettighetskategorier(fødselsnummer: String) =
         sessionOf(Database.dataSource).use {

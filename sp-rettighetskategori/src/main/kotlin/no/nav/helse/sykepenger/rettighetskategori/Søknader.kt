@@ -6,21 +6,27 @@ import com.github.navikt.tbd_libs.spedisjon.SpedisjonClient
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.util.UUID
 
+internal data class Søknad(
+    val yrkesaktivitet: Yrkesaktivitet,
+    val tilleggskategorier: Set<Tilleggskategori>,
+)
+
 internal class Søknader(
     private val spedisjonClient: SpedisjonClient,
 ) {
-    fun yrkesaktiviteter(søknader: List<UUID>): Set<Yrkesaktivitet> {
+    fun hent(søknader: List<UUID>): List<Søknad> {
         val meldinger = spedisjonClient.hentMeldinger(søknader).getOrThrow().meldinger
         val mangler = søknader - meldinger.map { it.internDokumentId }.toSet()
         check(mangler.isEmpty()) { "Spedisjon mangler søknader: $mangler" }
-        return meldinger.map { it.yrkesaktivitet() }.toSet()
+        return meldinger.map { it.søknad() }
     }
 
-    private fun HentMeldingResponse.yrkesaktivitet(): Yrkesaktivitet {
+    private fun HentMeldingResponse.søknad(): Søknad {
         val arbeidssituasjon = objectMapper.readTree(jsonBody).path("arbeidssituasjon").asString()
         return when {
-            type in søknadstyperForArbeidstaker -> Yrkesaktivitet.Arbeidstaker
-            type == "sendt_søknad_selvstendig" && arbeidssituasjon in arbeidssituasjonerForSelvstendig -> Yrkesaktivitet.SelvstendigNæringsdrivende
+            type in søknadstyperForArbeidstaker -> Søknad(Yrkesaktivitet.Arbeidstaker, emptySet())
+            type == SØKNADSTYPE_FOR_SELVSTENDIG && arbeidssituasjon in arbeidssituasjonerForSelvstendig ->
+                Søknad(Yrkesaktivitet.SelvstendigNæringsdrivende, tilleggskategorierForSelvstendig[arbeidssituasjon].orEmpty())
             else -> error("Søknad $internDokumentId av type $type med arbeidssituasjon $arbeidssituasjon gir ingen støttet yrkesaktivitet")
         }
     }
@@ -28,6 +34,8 @@ internal class Søknader(
     private companion object {
         val objectMapper = jacksonObjectMapper()
         val søknadstyperForArbeidstaker = setOf("sendt_søknad_arbeidsgiver", "sendt_søknad_nav")
-        val arbeidssituasjonerForSelvstendig = setOf("SELVSTENDIG_NARINGSDRIVENDE", "FISKER", "JORDBRUKER", "BARNEPASSER", "ANNET")
+        const val SØKNADSTYPE_FOR_SELVSTENDIG = "sendt_søknad_selvstendig"
+        val arbeidssituasjonerForSelvstendig = setOf("SELVSTENDIG_NARINGSDRIVENDE", "FISKER", "BARNEPASSER", "ANNET", "JORDBRUKER")
+        val tilleggskategorierForSelvstendig = mapOf("JORDBRUKER" to setOf(Tilleggskategori.JORDBRUKER))
     }
 }

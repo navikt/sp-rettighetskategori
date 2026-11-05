@@ -24,6 +24,7 @@ import no.nav.helse.sykepenger.rettighetskategori.Kilde
 import no.nav.helse.sykepenger.rettighetskategori.Rettighetskategori
 import no.nav.helse.sykepenger.rettighetskategori.RettighetskategoriRepository
 import no.nav.helse.sykepenger.rettighetskategori.SpleisClientException
+import no.nav.helse.sykepenger.rettighetskategori.Tilleggskategori
 import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_AUTHENTICATION_NAME
 import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerPrincipal
 import no.nav.sykepenger.libs.ktor.auth.Tilgang
@@ -42,12 +43,15 @@ internal enum class ApiHovedkategori {
     ARBEIDSTAKER_OG_SELVSTENDIG_NAERINGSDRIVENDE,
 }
 
+internal enum class ApiTilleggskategori { JORDBRUKER }
+
 internal enum class ApiKilde { AUTOMATISK, SAKSBEHANDLER, SPLEIS }
 
 internal data class RettighetskategoriResponse(
     val id: UUID,
     val skjæringstidspunkt: LocalDate,
     val hovedkategori: ApiHovedkategori,
+    val tilleggskategorier: List<ApiTilleggskategori>,
     val kilde: ApiKilde,
     val vurderingstidspunkt: Instant,
 ) {
@@ -56,10 +60,15 @@ internal data class RettighetskategoriResponse(
             RettighetskategoriResponse(
                 avgjørelse.id,
                 avgjørelse.skjæringstidspunkt,
-                when (avgjørelse.hovedkategori) {
+                when (avgjørelse.konklusjon.hovedkategori) {
                     Hovedkategori.ARBEIDSTAKER -> ApiHovedkategori.ARBEIDSTAKER
                     Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE -> ApiHovedkategori.SELVSTENDIG_NAERINGSDRIVENDE
                     Hovedkategori.ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE -> ApiHovedkategori.ARBEIDSTAKER_OG_SELVSTENDIG_NAERINGSDRIVENDE
+                },
+                avgjørelse.konklusjon.tilleggskategorier.sorted().map {
+                    when (it) {
+                        Tilleggskategori.JORDBRUKER -> ApiTilleggskategori.JORDBRUKER
+                    }
                 },
                 when (avgjørelse.kilde) {
                     Kilde.AUTOMATISK -> ApiKilde.AUTOMATISK

@@ -12,6 +12,7 @@ import no.nav.sykepenger.libs.logging.loggError
 import no.nav.sykepenger.libs.logging.loggInfo
 import no.nav.sykepenger.libs.logging.medMdc
 import tools.jackson.databind.JsonNode
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -56,14 +57,14 @@ internal class RettighetskategoriRiver(
                         BEHOV to
                             mapOf(
                                 "id" to rettighetskategori.id.toString(),
-                                "hovedkategori" to rettighetskategori.hovedkategori.name,
+                                "hovedkategori" to rettighetskategori.konklusjon.hovedkategori.name,
                             ),
                     )
                 loggInfo(
                     "Publiserer løsning på $BEHOV",
                     "rettighetskategoriId" to rettighetskategori.id.toString(),
                     "skjæringstidspunkt" to skjæringstidspunkt.toString(),
-                    "hovedkategori" to rettighetskategori.hovedkategori.name,
+                    "hovedkategori" to rettighetskategori.konklusjon.hovedkategori.name,
                 )
                 context.publish(packet.toJson())
             } catch (ex: Exception) {
@@ -83,20 +84,26 @@ internal class RettighetskategoriRiver(
         søknadIder: List<UUID>,
     ): Rettighetskategori {
         val gjeldende = repository.gjeldende(fødselsnummer, skjæringstidspunkt)
-        if (gjeldende != null && gjeldende.søknader.toSet() == søknadIder.toSet()) return gjeldende
+        val sisteSøknadssett = repository.søknaderISisteVurdering(fødselsnummer, skjæringstidspunkt)
+        if (gjeldende != null && sisteSøknadssett == søknadIder.toSet()) return gjeldende
 
-        val yrkesaktiviteter = søknader.yrkesaktiviteter(søknadIder)
-        val hovedkategori =
-            checkNotNull(Hovedkategori.avgjør(yrkesaktiviteter)) {
-                "Fant ingen hovedkategori for yrkesaktivitetene $yrkesaktiviteter"
-            }
+        val vurdering =
+            Vurdering(
+                søknader = søknadIder,
+                konklusjon = Konklusjon.avgjør(søknader.hent(søknadIder)),
+                vurderingstidspunkt = Instant.now(),
+            )
+        if (gjeldende != null && gjeldende.konklusjon == vurdering.konklusjon) {
+            repository.føyTilVurdering(gjeldende.id, vurdering)
+            return gjeldende
+        }
+
         return Rettighetskategori
             .automatisk(
                 fødselsnummer = fødselsnummer,
                 skjæringstidspunkt = skjæringstidspunkt,
-                hovedkategori = hovedkategori,
-                søknader = søknadIder,
-            ).also(repository::lagre)
+                vurdering = vurdering,
+            ).also { repository.lagreAutomatisk(it, vurdering) }
     }
 
     private companion object {

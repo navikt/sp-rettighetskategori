@@ -26,6 +26,26 @@ internal enum class Hovedkategori {
     }
 }
 
+internal enum class Tilleggskategori {
+    JORDBRUKER,
+}
+
+internal data class Konklusjon(
+    val hovedkategori: Hovedkategori,
+    val tilleggskategorier: Set<Tilleggskategori>,
+) {
+    companion object {
+        fun avgjør(søknader: List<Søknad>): Konklusjon {
+            val yrkesaktiviteter = søknader.map { it.yrkesaktivitet }.toSet()
+            val hovedkategori =
+                checkNotNull(Hovedkategori.avgjør(yrkesaktiviteter)) {
+                    "Fant ingen hovedkategori for yrkesaktivitetene $yrkesaktiviteter"
+                }
+            return Konklusjon(hovedkategori, søknader.flatMap { it.tilleggskategorier }.toSet())
+        }
+    }
+}
+
 internal enum class Kilde(
     val dbVerdi: String,
 ) {
@@ -39,29 +59,32 @@ internal enum class Kilde(
     }
 }
 
+internal data class Vurdering(
+    val søknader: List<UUID>,
+    val konklusjon: Konklusjon,
+    val vurderingstidspunkt: Instant,
+)
+
 internal data class Rettighetskategori(
     val id: UUID,
     val fødselsnummer: String,
     val skjæringstidspunkt: LocalDate,
-    val hovedkategori: Hovedkategori,
+    val konklusjon: Konklusjon,
     val kilde: Kilde,
     val vurderingstidspunkt: Instant,
-    val søknader: List<UUID>,
 ) {
     companion object {
         fun automatisk(
             fødselsnummer: String,
             skjæringstidspunkt: LocalDate,
-            hovedkategori: Hovedkategori,
-            søknader: List<UUID>,
+            vurdering: Vurdering,
         ) = Rettighetskategori(
             id = UUID.randomUUID(),
             fødselsnummer = fødselsnummer,
             skjæringstidspunkt = skjæringstidspunkt,
-            hovedkategori = hovedkategori,
+            konklusjon = vurdering.konklusjon,
             kilde = Kilde.AUTOMATISK,
-            vurderingstidspunkt = Instant.now(),
-            søknader = søknader,
+            vurderingstidspunkt = vurdering.vurderingstidspunkt,
         )
 
         fun fraSpleis(
@@ -74,10 +97,9 @@ internal data class Rettighetskategori(
             id = id,
             fødselsnummer = fødselsnummer,
             skjæringstidspunkt = skjæringstidspunkt,
-            hovedkategori = hovedkategori,
+            konklusjon = Konklusjon(hovedkategori, emptySet()),
             kilde = Kilde.SPLEIS,
             vurderingstidspunkt = vurderingstidspunkt,
-            søknader = emptyList(),
         )
     }
 }
