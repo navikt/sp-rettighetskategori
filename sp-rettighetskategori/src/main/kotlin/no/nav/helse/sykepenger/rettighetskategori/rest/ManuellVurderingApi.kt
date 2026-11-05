@@ -26,14 +26,15 @@ private data class ManuellVurderingRequest(
     val begrunnelse: String?,
 )
 
-/** Saksbehandler legger til eller fjerner tilleggskategorier. Gir en ny avgjørelse som erstatter den gjeldende. */
 internal fun Route.manuellVurderingApi(
+    aktivert: Boolean,
     repository: RettighetskategoriRepository,
     backfill: Backfill,
     personProvider: PersonPseudoIdProvider,
     tilgangskontroll: PopulasjonstilgangskontrollProvider,
 ) {
     post("/api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}/manuell-vurdering") {
+        if (!aktivert) return@post call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
         val fødselsnummer = call.fødselsnummerMedTilgang(Tilgang.Skriv, personProvider, tilgangskontroll) ?: return@post
         val saksbehandler = checkNotNull(call.principal<SaksbehandlerPrincipal>()).saksbehandler
         val id =

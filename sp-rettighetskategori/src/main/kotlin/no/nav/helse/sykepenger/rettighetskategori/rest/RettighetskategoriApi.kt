@@ -98,7 +98,7 @@ internal fun Application.configureRestApi(
     routing {
         authenticate(AZURE_AD_AUTHENTICATION_NAME) {
             rettighetskategoriApi(repository, backfill, personProvider, tilgangskontroll)
-            if (manuellVurderingAktivert) manuellVurderingApi(repository, backfill, personProvider, tilgangskontroll)
+            manuellVurderingApi(manuellVurderingAktivert, repository, backfill, personProvider, tilgangskontroll)
         }
         authenticate(AZURE_AD_APP_AUTHENTICATION_NAME) {
             rettighetskategoriTjenesteApi(repository, backfill)

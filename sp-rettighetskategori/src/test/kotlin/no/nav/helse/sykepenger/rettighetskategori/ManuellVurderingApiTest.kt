@@ -239,7 +239,7 @@ internal class ManuellVurderingApiTest {
             aktivert = false
             lagreAvgjørelse(Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE)
             application { settOpp() }
-            assertEquals(HttpStatusCode.NotFound, manuellVurdering(JORDBRUKER).status)
+            assertProblem(HttpStatusCode.NotFound, manuellVurdering(JORDBRUKER))
             assertEquals(1, antallAvgjørelser())
         }
 

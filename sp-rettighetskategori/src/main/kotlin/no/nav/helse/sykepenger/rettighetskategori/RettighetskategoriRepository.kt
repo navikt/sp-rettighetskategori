@@ -22,6 +22,7 @@ internal class RettighetskategoriRepository(
     ) {
         sessionOf(dataSource).use { session ->
             session.transaction { tx ->
+                låsSkjæringstidspunkt(tx, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
                 lagre(tx, rettighetskategori, vurdering.søknader)
                 føyTilVurdering(tx, rettighetskategori.id, vurdering)
             }
@@ -43,6 +44,7 @@ internal class RettighetskategoriRepository(
             }
         }
 
+    // Automatiske og manuelle avgjørelser tar samme lås, så en manuell vurdering ser en automatisk avgjørelse som lagres samtidig.
     private fun låsSkjæringstidspunkt(
         session: Session,
         fødselsnummer: String,
