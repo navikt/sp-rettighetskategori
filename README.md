@@ -60,6 +60,9 @@ Den manuelle vurderingen gir en ny avgjørelse med ny ID, kilde `saksbehandler`,
 
 Den manuelle avgjørelsen er gjeldende til neste automatiske vurdering med en annen konklusjon. Kommer behovet `Rettighetskategori` med nye søknader og samme konklusjon, føyes vurderingen til den manuelle avgjørelsen.
 
+En ny manuell avgjørelse og meldingen `rettighetskategori_endret` lagres i samme transaksjon. Meldingen publiseres fra outboxen av poden som er leder.
+`LagreManuellVurdering` eier transaksjonen og skriver meldingen til outboxen. Repositoryet lagrer avgjørelsen og kontrollerer under lås at avgjørelsen som erstattes, fortsatt er gjeldende.
+
 Kallet krever det samme tokenet som oppslaget fra Speil, men gruppene i `TILGANG_SKRIV`. Populasjonstilgangen kontrolleres på samme måte. Ukjent ID gir backfill fra Spleis, som for oppslaget. Endepunktet finnes bare når `MANUELL_VURDERING_AKTIVERT=true`, som er satt i dev og ikke i prod.
 
 | Status | Betydning |

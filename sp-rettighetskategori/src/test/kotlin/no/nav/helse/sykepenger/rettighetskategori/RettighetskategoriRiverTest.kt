@@ -59,6 +59,7 @@ internal class RettighetskategoriRiverTest {
             ),
             lagredeVurderinger().single(),
         )
+        assertEquals(0, TestDatabase.antallOutboxMeldinger())
     }
 
     @Test
@@ -360,6 +361,7 @@ internal class RettighetskategoriRiverTest {
             lagredeRader().map { Triple(it.id, it.kilde, it.tilleggskategorier) },
         )
         assertEquals(ny, RettighetskategoriRepository(TestDatabase.dataSource).gjeldende(FØDSELSNUMMER, SKJÆRINGSTIDSPUNKT)?.id)
+        assertEquals(1, TestDatabase.antallOutboxMeldinger())
     }
 
     @Test
@@ -381,7 +383,7 @@ internal class RettighetskategoriRiverTest {
     ): UUID {
         val repository = RettighetskategoriRepository(TestDatabase.dataSource)
         val ny = checkNotNull(repository.finn(erstatter)).manueltVurdert(tilleggskategorier, Instant.now())
-        check(repository.lagreManuellVurdering(ny, ManuellVurdering("Z999999", null, erstatter)))
+        check(LagreManuellVurdering(TestDatabase.dataSource, repository).lagre(ny, ManuellVurdering("Z999999", null, erstatter)))
         return ny.id
     }
 

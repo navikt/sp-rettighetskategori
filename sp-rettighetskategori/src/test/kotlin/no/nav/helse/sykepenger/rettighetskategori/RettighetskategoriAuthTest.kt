@@ -123,7 +123,7 @@ internal class RettighetskategoriAuthTest {
                 TilgangsgrupperTilTilganger.fraEnv(mapOf("TILGANG_LES" to "les", "TILGANG_SKRIV" to "skriv")),
             )
             configureAppAuthentication(azureAdConfig)
-            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = true)
+            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = true, LagreManuellVurdering(TestDatabase.dataSource, repository))
         }
         val token = oauth.issueToken(issuerId = "azure", audience = "sp-rettighetskategori", claims = tokenClaims).serialize()
 
@@ -157,7 +157,7 @@ internal class RettighetskategoriAuthTest {
                 ),
             )
             configureAppAuthentication(azureAdConfig)
-            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = true)
+            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = true, LagreManuellVurdering(TestDatabase.dataSource, repository))
         }
         val token =
             rawToken ?: oauth

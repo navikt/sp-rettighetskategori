@@ -13,6 +13,8 @@ dependencies {
     implementation(libs.sykepengerLibs.ktor.auth)
     implementation(libs.sykepengerLibs.logging)
     implementation(libs.sykepengerLibs.postgres)
+    implementation(libs.sykepengerLibs.leader.election)
+    implementation(libs.sykepengerLibs.outbox)
     implementation(libs.tbd.libs.azure.token.client.default)
     implementation(libs.tbd.libs.spedisjon.client)
     implementation(libs.ktor.server.content.negotiation)

@@ -19,8 +19,10 @@ import no.nav.sykepenger.libs.ktor.auth.AzureAdConfig
 import no.nav.sykepenger.libs.ktor.auth.TilgangsgrupperTilTilganger
 import no.nav.sykepenger.libs.ktor.auth.configureAppAuthentication
 import no.nav.sykepenger.libs.ktor.auth.configureJwtAuthentication
+import no.nav.sykepenger.libs.leaderelection.NaisLeaderElection
 import no.nav.sykepenger.libs.logging.loggInfo
 import no.nav.sykepenger.libs.logging.navngittLogger
+import no.nav.sykepenger.libs.outbox.OutboxPubliseringsjobb
 import no.nav.sykepenger.libs.postgres.DatabaseConfig
 import no.nav.sykepenger.libs.postgres.dataSource
 import no.nav.sykepenger.libs.postgres.migrerSynkront
@@ -62,6 +64,11 @@ internal fun launchApplication(
     val dataSource = databaseConfig.dataSource()
     val repository = RettighetskategoriRepository(dataSource)
     val backfill = Backfill(spleisClient, repository)
+    val leaderElection =
+        NaisLeaderElection(
+            electorSseUrl = env.getValue("ELECTOR_SSE_URL"),
+            hostname = env.getValue("HOSTNAME"),
+        )
 
     RapidApplication
         .create(
@@ -78,6 +85,7 @@ internal fun launchApplication(
                         personProvider,
                         tilgangskontroll,
                         manuellVurderingAktivert = env["MANUELL_VURDERING_AKTIVERT"].toBoolean(),
+                        lagreManuellVurdering = LagreManuellVurdering(dataSource, repository),
                     )
                     monitor.subscribe(ApplicationStopped) {
                         loggInfo("Lukker datasource")
@@ -85,8 +93,23 @@ internal fun launchApplication(
                     }
                 }
             },
-        ).apply { registrerRivers(dataSource, spedisjonClient, spleisClient) }
-        .start()
+        ).apply {
+            register(NaisLeaderElectionStatusListener(leaderElection))
+            register(OutboxPubliseringsjobb(dataSource, this, leaderElection))
+            registrerRivers(dataSource, spedisjonClient, spleisClient)
+        }.start()
+}
+
+private class NaisLeaderElectionStatusListener(
+    private val leaderElection: NaisLeaderElection,
+) : RapidsConnection.StatusListener {
+    override fun onStartup(rapidsConnection: RapidsConnection) {
+        leaderElection.start()
+    }
+
+    override fun onShutdownSignal(rapidsConnection: RapidsConnection) {
+        leaderElection.close()
+    }
 }
 
 internal fun RapidsConnection.registrerRivers(

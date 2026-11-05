@@ -9,6 +9,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import no.nav.helse.sykepenger.rettighetskategori.Backfill
+import no.nav.helse.sykepenger.rettighetskategori.LagreManuellVurdering
 import no.nav.helse.sykepenger.rettighetskategori.ManuellVurdering
 import no.nav.helse.sykepenger.rettighetskategori.RettighetskategoriRepository
 import no.nav.helse.sykepenger.rettighetskategori.Tilleggskategori
@@ -28,6 +29,7 @@ internal fun Route.manuellVurderingApi(
     backfill: Backfill,
     personProvider: PersonPseudoIdProvider,
     tilgangskontroll: PopulasjonstilgangskontrollProvider,
+    lagreManuellVurdering: LagreManuellVurdering,
 ) {
     post("/api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}/manuell-vurdering") {
         if (!aktivert) return@post call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
@@ -51,7 +53,7 @@ internal fun Route.manuellVurderingApi(
 
         val ny = erstattes.manueltVurdert(tilleggskategorier, Instant.now())
         val manuellVurdering = ManuellVurdering(saksbehandler.navIdent.value, forespørsel.begrunnelse?.takeIf(String::isNotBlank), erstattes.id)
-        if (!repository.lagreManuellVurdering(ny, manuellVurdering)) {
+        if (!lagreManuellVurdering.lagre(ny, manuellVurdering)) {
             return@post call.respondProblem(HttpStatusCode.Conflict, "Rettighetskategorien er endret")
         }
         loggInfo(

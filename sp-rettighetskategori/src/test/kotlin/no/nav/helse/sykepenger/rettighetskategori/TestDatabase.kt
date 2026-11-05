@@ -10,7 +10,12 @@ internal object TestDatabase {
 
     val dataSource: DataSource = database.dataSource
 
-    fun tøm() = database.tøm("vurdering", "rettighetskategori", "migreringslogg")
+    fun tøm() = database.tøm("outbox", "vurdering", "rettighetskategori", "migreringslogg")
+
+    fun antallOutboxMeldinger() =
+        sessionOf(dataSource).use { session ->
+            session.run(queryOf("SELECT count(*) FROM outbox").map { it.int(1) }.asSingle)
+        }
 
     data class Logginnslag(
         val fødselsnummer: String,

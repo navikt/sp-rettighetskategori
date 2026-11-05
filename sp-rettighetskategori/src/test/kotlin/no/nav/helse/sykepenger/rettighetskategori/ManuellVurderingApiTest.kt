@@ -4,6 +4,7 @@ import com.github.navikt.tbd_libs.personpseudoid.Identitetsnummer
 import com.github.navikt.tbd_libs.personpseudoid.PersonPseudoId
 import com.github.navikt.tbd_libs.populasjonstilgang.api.TilgangSomMangler
 import com.github.navikt.tbd_libs.populasjonstilgang.api.TilgangskontrollResultat
+import com.github.navikt.tbd_libs.rapids_and_rivers.test_support.TestRapid
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -27,6 +28,8 @@ import no.nav.sykepenger.libs.ktor.auth.Saksbehandler
 import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerOid
 import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerPrincipal
 import no.nav.sykepenger.libs.ktor.auth.Tilgang
+import no.nav.sykepenger.libs.leaderelection.LeaderElection
+import no.nav.sykepenger.libs.outbox.OutboxPubliseringsjobb
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -78,6 +81,20 @@ internal class ManuellVurderingApiTest {
                 ManuellVurderingsrad("Z999999", "Driver gård", id),
                 manuellVurdering(nyId),
             )
+            val melding = jacksonObjectMapper().readTree(outboxMelding())
+            assertEquals("rettighetskategori_endret", melding["@event_name"].asString())
+            assertEquals(fødselsnummer, melding["fødselsnummer"].asString())
+            assertEquals("2026-01-01", melding["skjæringstidspunkt"].asString())
+            assertEquals(nyId.toString(), melding["rettighetskategoriId"].asString())
+            assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", melding["hovedkategori"].asString())
+
+            val rapid = TestRapid()
+            OutboxPubliseringsjobb(TestDatabase.dataSource, rapid, LeaderElection { true }).publiserUpubliserte()
+
+            assertEquals(1, rapid.inspektør.size)
+            assertEquals(fødselsnummer, rapid.inspektør.key(0))
+            assertEquals(melding, rapid.inspektør.message(0))
+            assertEquals(1, antallPubliserteMeldinger())
         }
 
     @Test
@@ -123,6 +140,34 @@ internal class ManuellVurderingApiTest {
             assertEquals(id.toString(), json["id"].asString())
             assertEquals("AUTOMATISK", json["kilde"].asString())
             assertEquals(1, antallAvgjørelser())
+            assertEquals(0, TestDatabase.antallOutboxMeldinger())
+        }
+
+    @Test
+    fun `feil ved lagring av outbox-melding ruller tilbake avgjørelsen`() =
+        testApplication {
+            lagreAvgjørelse(Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE)
+            application { settOpp() }
+            sessionOf(TestDatabase.dataSource).use { session ->
+                session.run(
+                    queryOf(
+                        "ALTER TABLE outbox ADD CONSTRAINT outbox_test_constraint CHECK (fodselsnummer <> '12345678901')",
+                    ).asUpdate,
+                )
+            }
+
+            val response =
+                try {
+                    manuellVurdering(JORDBRUKER)
+                } finally {
+                    sessionOf(TestDatabase.dataSource).use { session ->
+                        session.run(queryOf("ALTER TABLE outbox DROP CONSTRAINT outbox_test_constraint").asUpdate)
+                    }
+                }
+
+            assertEquals(HttpStatusCode.InternalServerError, response.status)
+            assertEquals(1, antallAvgjørelser())
+            assertEquals(0, TestDatabase.antallOutboxMeldinger())
         }
 
     @Test
@@ -135,6 +180,7 @@ internal class ManuellVurderingApiTest {
 
             assertProblem(HttpStatusCode.BadRequest, response)
             assertEquals(1, antallAvgjørelser())
+            assertEquals(0, TestDatabase.antallOutboxMeldinger())
         }
 
     @ParameterizedTest
@@ -259,6 +305,16 @@ internal class ManuellVurderingApiTest {
             session.run(queryOf("SELECT count(*) FROM rettighetskategori").map { it.int(1) }.asSingle)
         }
 
+    private fun antallPubliserteMeldinger() =
+        sessionOf(TestDatabase.dataSource).use { session ->
+            session.run(queryOf("SELECT count(*) FROM outbox WHERE publisert_tidspunkt IS NOT NULL").map { it.int(1) }.asSingle)
+        }
+
+    private fun outboxMelding() =
+        sessionOf(TestDatabase.dataSource).use { session ->
+            session.run(queryOf("SELECT melding::text FROM outbox").map { it.string(1) }.asSingle)
+        }
+
     private fun Application.settOpp() {
         install(Authentication) {
             provider(AZURE_AD_AUTHENTICATION_NAME) {
@@ -276,7 +332,7 @@ internal class ManuellVurderingApiTest {
                 authenticate { error("Endepunktet for tjenester testes i RettighetskategoriTjenesteApiTest") }
             }
         }
-        configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, aktivert)
+        configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, aktivert, LagreManuellVurdering(TestDatabase.dataSource, repository))
     }
 
     private fun lagreAvgjørelse(

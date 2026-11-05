@@ -31,18 +31,19 @@ internal class RettighetskategoriRepository(
 
     /** Lagrer ikke, og gir `false`, når avgjørelsen som erstattes ikke lenger er gjeldende for skjæringstidspunktet. */
     fun lagreManuellVurdering(
+        session: Session,
         rettighetskategori: Rettighetskategori,
         manuellVurdering: ManuellVurdering,
-    ): Boolean =
-        sessionOf(dataSource).use { session ->
-            session.transaction { tx ->
-                låsSkjæringstidspunkt(tx, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
-                val gjeldende = gjeldende(tx, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
-                if (gjeldende?.id != manuellVurdering.erstatter) return@transaction false
-                lagre(tx, rettighetskategori, emptyList(), manuellVurdering)
-                true
-            }
+    ): Boolean {
+        check(!session.connection.underlying.autoCommit) { "Manuell vurdering må lagres i en transaksjon" }
+        låsSkjæringstidspunkt(session, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
+        val gjeldende = gjeldende(session, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
+        if (gjeldende?.id != manuellVurdering.erstatter) return false
+        check(lagre(session, rettighetskategori, emptyList(), manuellVurdering) == 1) {
+            "Den manuelle avgjørelsen ble ikke lagret"
         }
+        return true
+    }
 
     // Automatiske og manuelle avgjørelser tar samme lås, så en manuell vurdering ser en automatisk avgjørelse som lagres samtidig.
     private fun låsSkjæringstidspunkt(

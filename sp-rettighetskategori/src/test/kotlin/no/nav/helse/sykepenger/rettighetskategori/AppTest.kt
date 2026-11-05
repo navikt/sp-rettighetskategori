@@ -1,8 +1,11 @@
 package no.nav.helse.sykepenger.rettighetskategori
 
 import com.github.navikt.tbd_libs.kafka.Config
+import com.github.navikt.tbd_libs.rapids_and_rivers.JsonMessage
+import com.sun.net.httpserver.HttpServer
 import kotliquery.queryOf
 import kotliquery.sessionOf
+import no.nav.sykepenger.libs.outbox.Outbox
 import org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG
 import org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG
 import org.apache.kafka.clients.admin.AdminClient
@@ -16,10 +19,12 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.testcontainers.kafka.KafkaContainer
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
@@ -29,8 +34,13 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.util.*
+import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
 import no.nav.sykepenger.libs.postgres.TestDatabase as PostgresTestDatabase
@@ -41,11 +51,38 @@ internal class AppTest {
     private val testDatabase = PostgresTestDatabase.start()
     private val kafka = KafkaContainer("apache/kafka-native:3.9.1").also { it.start() }
     private val kafkaConfig = TestKafkaConfig(kafka.bootstrapServers)
+    private val electorMessages = LinkedBlockingQueue<String>()
+    private val electorRunning = AtomicBoolean(true)
+    private val electorServer =
+        HttpServer
+            .create(InetSocketAddress("localhost", 0), 0)
+            .apply {
+                createContext("/sse") { exchange ->
+                    exchange.responseHeaders.add("Content-Type", "text/event-stream")
+                    exchange.sendResponseHeaders(200, 0)
+                    try {
+                        exchange.responseBody.bufferedWriter().use { writer ->
+                            while (electorRunning.get()) {
+                                val leader = electorMessages.poll(100, TimeUnit.MILLISECONDS) ?: continue
+                                writer.write("data: {\"name\":\"$leader\"}\n\n")
+                                writer.flush()
+                            }
+                        }
+                    } catch (_: java.io.IOException) {
+                    }
+                }
+                executor =
+                    Executors.newCachedThreadPool { task ->
+                        Thread(task, "elector-test").apply { isDaemon = true }
+                    }
+                start()
+            }
     private val httpPort = ServerSocket(0).use { it.localPort }
     private val httpClient = HttpClient.newHttpClient()
 
     @BeforeAll
     fun startApplikasjonen() {
+        electorMessages.add("another-pod")
         AdminClient.create(kafkaConfig.adminConfig(Properties())).use {
             it.createTopics(listOf(NewTopic(rapidTopic, 1, 1))).all().get()
         }
@@ -64,6 +101,8 @@ internal class AppTest {
                             "AZURE_APP_CLIENT_ID" to "sp-rettighetskategori",
                             "AZURE_OPENID_CONFIG_ISSUER" to "http://localhost/azure",
                             "AZURE_OPENID_CONFIG_JWKS_URI" to "http://localhost/azure/jwks",
+                            "ELECTOR_SSE_URL" to "http://localhost:${electorServer.address.port}/sse",
+                            "HOSTNAME" to "test-pod",
                             "TILGANG_LES" to "les",
                             "TILGANG_SKRIV" to "skriv",
                             "EKSPONER_OPENAPI" to "true",
@@ -76,6 +115,12 @@ internal class AppTest {
             )
         }
         ventTil("applikasjonen er klar") { statuskode("/isready") == 200 }
+    }
+
+    @AfterAll
+    fun stopElector() {
+        electorRunning.set(false)
+        electorServer.stop(0)
     }
 
     @Test
@@ -141,6 +186,67 @@ internal class AppTest {
             }
             fail("Fikk ikke pong på ping $pingId")
         }
+    }
+
+    @Test
+    fun `publiserer outbox-meldinger bare når poden er leder`() {
+        val rettighetskategoriId = UUID.randomUUID().toString()
+        val melding =
+            JsonMessage
+                .newMessage(
+                    "rettighetskategori_endret",
+                    mapOf(
+                        "fødselsnummer" to "12345678901",
+                        "skjæringstidspunkt" to "2026-01-01",
+                        "rettighetskategoriId" to rettighetskategoriId,
+                        "hovedkategori" to "SELVSTENDIG_NÆRINGSDRIVENDE",
+                    ),
+                ).toJson()
+        val partition = TopicPartition(rapidTopic, 0)
+
+        KafkaConsumer(
+            kafkaConfig.consumerConfig("outbox-test-${UUID.randomUUID()}", Properties()),
+            StringDeserializer(),
+            StringDeserializer(),
+        ).use { consumer ->
+            consumer.assign(listOf(partition))
+            consumer.seekToEnd(listOf(partition))
+            consumer.position(partition)
+            testDatabase.dataSource.connection.use { connection ->
+                Outbox.leggTil(connection, "12345678901", melding)
+            }
+
+            val beforeLeadership = consumer.poll(Duration.ofSeconds(2)).firstOrNull { it.value().contains(rettighetskategoriId) }
+            assertNull(beforeLeadership)
+
+            electorMessages.put("test-pod")
+            val record = ventTilMelding(consumer, rettighetskategoriId)
+            assertEquals("12345678901", record.key())
+            assertTrue(record.value().contains("rettighetskategori_endret"))
+            assertTrue(record.value().contains(rettighetskategoriId))
+            ventTil("outbox-meldingen er merket som publisert") {
+                sessionOf(testDatabase.dataSource).use { session ->
+                    session.run(
+                        queryOf(
+                            "SELECT count(*) FROM outbox WHERE melding ->> 'rettighetskategoriId' = :id AND publisert_tidspunkt IS NOT NULL",
+                            mapOf("id" to rettighetskategoriId),
+                        ).map { it.int(1) }.asSingle,
+                    ) == 1
+                }
+            }
+        }
+    }
+
+    private fun ventTilMelding(
+        consumer: KafkaConsumer<String, String>,
+        rettighetskategoriId: String,
+    ) = run {
+        val frist = Instant.now().plusSeconds(15)
+        while (Instant.now() < frist) {
+            val melding = consumer.poll(Duration.ofMillis(250)).firstOrNull { it.value().contains(rettighetskategoriId) }
+            if (melding != null) return@run melding
+        }
+        fail("Fikk ikke publisert outbox-meldingen med rettighetskategoriId $rettighetskategoriId")
     }
 
     private fun statuskode(path: String): Int? =

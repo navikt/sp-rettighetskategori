@@ -229,7 +229,7 @@ internal class RettighetskategoriTjenesteApiTest {
             val azureAdConfig = AzureAdConfig(CLIENT_ID, oauth.issuerUrl(ISSUER_ID).toString(), oauth.jwksUrl(ISSUER_ID).toString())
             configureJwtAuthentication(azureAdConfig, TilgangsgrupperTilTilganger(setOf("les"), emptySet()))
             configureAppAuthentication(azureAdConfig)
-            configureRestApi(repository, Backfill(spleis.client, repository), FakePersonProvider(), FakeTilgangskontroll(), manuellVurderingAktivert = false)
+            configureRestApi(repository, Backfill(spleis.client, repository), FakePersonProvider(), FakeTilgangskontroll(), manuellVurderingAktivert = false, LagreManuellVurdering(TestDatabase.dataSource, repository))
         }
     }
 

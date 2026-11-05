@@ -22,6 +22,7 @@ import io.ktor.server.routing.routing
 import no.nav.helse.sykepenger.rettighetskategori.Backfill
 import no.nav.helse.sykepenger.rettighetskategori.Hovedkategori
 import no.nav.helse.sykepenger.rettighetskategori.Kilde
+import no.nav.helse.sykepenger.rettighetskategori.LagreManuellVurdering
 import no.nav.helse.sykepenger.rettighetskategori.Rettighetskategori
 import no.nav.helse.sykepenger.rettighetskategori.RettighetskategoriRepository
 import no.nav.helse.sykepenger.rettighetskategori.SpleisClientException
@@ -92,6 +93,7 @@ internal fun Application.configureRestApi(
     personProvider: PersonPseudoIdProvider,
     tilgangskontroll: PopulasjonstilgangskontrollProvider,
     manuellVurderingAktivert: Boolean,
+    lagreManuellVurdering: LagreManuellVurdering,
 ) {
     install(ContentNegotiation) {
         jackson {
@@ -115,7 +117,7 @@ internal fun Application.configureRestApi(
     routing {
         authenticate(AZURE_AD_AUTHENTICATION_NAME) {
             rettighetskategoriApi(repository, backfill, personProvider, tilgangskontroll)
-            manuellVurderingApi(manuellVurderingAktivert, repository, backfill, personProvider, tilgangskontroll)
+            manuellVurderingApi(manuellVurderingAktivert, repository, backfill, personProvider, tilgangskontroll, lagreManuellVurdering)
         }
         authenticate(AZURE_AD_APP_AUTHENTICATION_NAME) {
             rettighetskategoriTjenesteApi(repository, backfill)
