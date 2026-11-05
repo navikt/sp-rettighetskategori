@@ -12,6 +12,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
@@ -31,6 +32,10 @@ import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerPrincipal
 import no.nav.sykepenger.libs.ktor.auth.Tilgang
 import no.nav.sykepenger.libs.logging.navngittLogger
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.cfg.CoercionAction
+import tools.jackson.databind.cfg.CoercionInputShape
+import tools.jackson.databind.cfg.EnumFeature
+import tools.jackson.databind.type.LogicalType
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
@@ -88,8 +93,20 @@ internal fun Application.configureRestApi(
     tilgangskontroll: PopulasjonstilgangskontrollProvider,
     manuellVurderingAktivert: Boolean,
 ) {
-    install(ContentNegotiation) { jackson() }
+    install(ContentNegotiation) {
+        jackson {
+            enable(EnumFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
+            withCoercionConfig(LogicalType.Textual) { tekst ->
+                listOf(CoercionInputShape.Integer, CoercionInputShape.Float, CoercionInputShape.Boolean)
+                    .forEach { tekst.setCoercion(it, CoercionAction.Fail) }
+            }
+        }
+    }
     install(StatusPages) {
+        exception<BadRequestException> { call, cause ->
+            logger.debug("400: ugyldig forespørsel", cause)
+            call.respondProblem(HttpStatusCode.BadRequest, "Ugyldig forespørsel")
+        }
         exception<Throwable> { call, cause ->
             logger.error("Uventet feil ved API-kall", cause)
             call.respondProblem(HttpStatusCode.InternalServerError, "Intern serverfeil")

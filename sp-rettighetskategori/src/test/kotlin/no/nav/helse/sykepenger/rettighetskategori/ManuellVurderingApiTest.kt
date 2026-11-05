@@ -142,7 +142,9 @@ internal class ManuellVurderingApiTest {
         strings = [
             """{"tilleggskategorier":["FISKER"]}""",
             """{"tilleggskategorier":["jordbruker"]}""",
-            """{"tilleggskategorier":[1]}""",
+            """{"tilleggskategorier":[0]}""",
+            """{"tilleggskategorier":[null]}""",
+            """{"tilleggskategorier":null}""",
             """{"tilleggskategorier":"JORDBRUKER"}""",
             """{"begrunnelse":"Mangler tilleggskategorier"}""",
             """{"tilleggskategorier":[],"begrunnelse":1}""",
