@@ -85,7 +85,7 @@ internal class RettighetskategoriApiTest {
                 authenticate { error("Endepunktet for tjenester testes i RettighetskategoriTjenesteApiTest") }
             }
         }
-        configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll)
+        configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = false)
     }
 
     private fun saksbehandlerPrincipal() =

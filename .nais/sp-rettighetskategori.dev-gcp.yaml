@@ -36,3 +36,5 @@ spec:
       value: 216b7219-3906-43c5-8e22-03fb74133b42
     - name: DB_POOL_SIZE
       value: "3"
+    - name: MANUELL_VURDERING_AKTIVERT
+      value: "true"

@@ -7,8 +7,12 @@ import com.github.navikt.tbd_libs.populasjonstilgang.api.Populasjonstilgangskont
 import com.github.navikt.tbd_libs.populasjonstilgang.api.TilgangskontrollResultat
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
 import no.nav.security.mock.oauth2.MockOAuth2Server
@@ -90,6 +94,50 @@ internal class RettighetskategoriAuthTest {
     @Test
     fun `ugyldig gruppeclaim gir 401 uten body`() = sjekk(HttpStatusCode.Unauthorized, claims + ("groups" to "les"))
 
+    @Test
+    fun `skrivegruppe gir manuell vurdering`() = sjekkManuellVurdering(HttpStatusCode.OK, claims + ("groups" to listOf("skriv")))
+
+    @Test
+    fun `lesegruppe alene gir 403 på manuell vurdering`() = sjekkManuellVurdering(HttpStatusCode.Forbidden)
+
+    @Test
+    fun `manuell vurdering uten token gir 401 uten body`() = sjekkManuellVurdering(HttpStatusCode.Unauthorized, utenToken = true)
+
+    @Test
+    fun `maskin-til-maskin-token gir 401 på manuell vurdering`() = sjekkManuellVurdering(HttpStatusCode.Unauthorized, mapOf("idtyp" to "app", "azp" to "speil", "groups" to listOf("skriv")))
+
+    private fun sjekkManuellVurdering(
+        forventetStatus: HttpStatusCode,
+        tokenClaims: Map<String, Any> = claims,
+        utenToken: Boolean = false,
+    ) = testApplication {
+        TestDatabase.tøm()
+        val repository = RettighetskategoriRepository(TestDatabase.dataSource)
+        repository.lagre(
+            Rettighetskategori.fraSpleis(id, fødselsnummer, LocalDate.parse("2026-01-01"), Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE, Instant.now()),
+        )
+        application {
+            val azureAdConfig = AzureAdConfig("sp-rettighetskategori", oauth.issuerUrl("azure").toString(), oauth.jwksUrl("azure").toString())
+            configureJwtAuthentication(
+                azureAdConfig,
+                TilgangsgrupperTilTilganger.fraEnv(mapOf("TILGANG_LES" to "les", "TILGANG_SKRIV" to "skriv")),
+            )
+            configureAppAuthentication(azureAdConfig)
+            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = true)
+        }
+        val token = oauth.issueToken(issuerId = "azure", audience = "sp-rettighetskategori", claims = tokenClaims).serialize()
+
+        val response =
+            client.post("/api/personer/${UUID.randomUUID()}/rettighetskategorier/$id/manuell-vurdering") {
+                if (!utenToken) bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"tilleggskategorier":["JORDBRUKER"]}""")
+            }
+
+        assertEquals(forventetStatus, response.status)
+        if (forventetStatus == HttpStatusCode.Unauthorized) assertEquals("", response.bodyAsText())
+    }
+
     private fun sjekk(
         forventetStatus: HttpStatusCode,
         tokenClaims: Map<String, Any> = claims,
@@ -109,7 +157,7 @@ internal class RettighetskategoriAuthTest {
                 ),
             )
             configureAppAuthentication(azureAdConfig)
-            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll)
+            configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll, manuellVurderingAktivert = true)
         }
         val token =
             rawToken ?: oauth

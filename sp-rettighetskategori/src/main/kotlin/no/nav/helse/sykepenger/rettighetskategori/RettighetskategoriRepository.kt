@@ -28,6 +28,35 @@ internal class RettighetskategoriRepository(
         }
     }
 
+    /** Lagrer ikke, og gir `false`, når avgjørelsen som erstattes ikke lenger er gjeldende for skjæringstidspunktet. */
+    fun lagreManuellVurdering(
+        rettighetskategori: Rettighetskategori,
+        manuellVurdering: ManuellVurdering,
+    ): Boolean =
+        sessionOf(dataSource).use { session ->
+            session.transaction { tx ->
+                låsSkjæringstidspunkt(tx, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
+                val gjeldende = gjeldende(tx, rettighetskategori.fødselsnummer, rettighetskategori.skjæringstidspunkt)
+                if (gjeldende?.id != manuellVurdering.erstatter) return@transaction false
+                lagre(tx, rettighetskategori, emptyList(), manuellVurdering)
+                true
+            }
+        }
+
+    private fun låsSkjæringstidspunkt(
+        session: Session,
+        fødselsnummer: String,
+        skjæringstidspunkt: LocalDate,
+    ) {
+        @Language("PostgreSQL")
+        val sql = "SELECT pg_advisory_xact_lock(hashtextextended(:fodselsnummer || :skjaeringstidspunkt, 0))"
+        session.run(
+            queryOf(sql, mapOf("fodselsnummer" to fødselsnummer, "skjaeringstidspunkt" to skjæringstidspunkt.toString()))
+                .map { }
+                .asSingle,
+        )
+    }
+
     fun føyTilVurdering(
         rettighetskategoriId: UUID,
         vurdering: Vurdering,
@@ -134,11 +163,14 @@ internal class RettighetskategoriRepository(
         session: Session,
         rettighetskategori: Rettighetskategori,
         søknader: List<UUID>,
+        manuellVurdering: ManuellVurdering? = null,
     ): Int {
         @Language("PostgreSQL")
         val sql = """
-            INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, tilleggskategorier, kilde, vurderingstidspunkt, søknader)
-            VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, :tilleggskategorier, :kilde, :vurderingstidspunkt, :soknader)
+            INSERT INTO rettighetskategori (id, fødselsnummer, skjæringstidspunkt, hovedkategori, tilleggskategorier, kilde, vurderingstidspunkt, søknader,
+                                            saksbehandler_ident, begrunnelse, erstatter)
+            VALUES (:id, :fodselsnummer, :skjaeringstidspunkt, :hovedkategori, :tilleggskategorier, :kilde, :vurderingstidspunkt, :soknader,
+                    :saksbehandlerIdent, :begrunnelse, :erstatter)
             ON CONFLICT (id) DO NOTHING
         """
         return session.run(
@@ -153,6 +185,9 @@ internal class RettighetskategoriRepository(
                     "kilde" to rettighetskategori.kilde.dbVerdi,
                     "vurderingstidspunkt" to rettighetskategori.vurderingstidspunkt,
                     "soknader" to session.createArrayOf("uuid", søknader),
+                    "saksbehandlerIdent" to manuellVurdering?.saksbehandlerIdent,
+                    "begrunnelse" to manuellVurdering?.begrunnelse,
+                    "erstatter" to manuellVurdering?.erstatter,
                 ),
             ).asUpdate,
         )
@@ -178,6 +213,12 @@ internal class RettighetskategoriRepository(
     fun gjeldende(
         fødselsnummer: String,
         skjæringstidspunkt: LocalDate,
+    ): Rettighetskategori? = sessionOf(dataSource).use { session -> gjeldende(session, fødselsnummer, skjæringstidspunkt) }
+
+    private fun gjeldende(
+        session: Session,
+        fødselsnummer: String,
+        skjæringstidspunkt: LocalDate,
     ): Rettighetskategori? {
         @Language("PostgreSQL")
         val sql = """
@@ -187,13 +228,11 @@ internal class RettighetskategoriRepository(
             ORDER BY vurderingstidspunkt DESC
             LIMIT 1
         """
-        return sessionOf(dataSource).use { session ->
-            session.run(
-                queryOf(sql, mapOf("fodselsnummer" to fødselsnummer, "skjaeringstidspunkt" to skjæringstidspunkt))
-                    .map(::tilRettighetskategori)
-                    .asSingle,
-            )
-        }
+        return session.run(
+            queryOf(sql, mapOf("fodselsnummer" to fødselsnummer, "skjaeringstidspunkt" to skjæringstidspunkt))
+                .map(::tilRettighetskategori)
+                .asSingle,
+        )
     }
 
     private fun tilRettighetskategori(row: Row) =

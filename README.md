@@ -52,6 +52,25 @@ Ukjent ID utløser backfill fra Spleis for fødselsnummeret og et nytt oppslag, 
 
 Feilsvar unntatt 401 har typen `application/problem+json`.
 
+## Manuell vurdering fra Speil
+
+`POST /api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}/manuell-vurdering` lar saksbehandler legge til eller fjerne tilleggskategorien `JORDBRUKER`. Bodyen er `{ "tilleggskategorier": ["JORDBRUKER"], "begrunnelse": "..." }`. En tom liste fjerner alle tilleggskategorier, og `begrunnelse` kan mangle eller være `null`.
+
+Den manuelle vurderingen gir en ny avgjørelse med ny ID, kilde `saksbehandler`, samme skjæringstidspunkt og hovedkategorien fra avgjørelsen den erstatter. Saksbehandlerens NAV-ident, begrunnelsen og ID-en til avgjørelsen som erstattes, lagres i kolonnene `saksbehandler_ident`, `begrunnelse` og `erstatter`. Tidspunktet er `vurderingstidspunkt`. Svaret har de samme feltene som oppslaget. Er tilleggskategoriene de samme som før, svarer appen med gjeldende avgjørelse og lagrer ingenting.
+
+Den manuelle avgjørelsen er gjeldende til neste automatiske vurdering med en annen konklusjon. Kommer behovet `Rettighetskategori` med nye søknader og samme konklusjon, føyes vurderingen til den manuelle avgjørelsen.
+
+Kallet krever det samme tokenet som oppslaget fra Speil, men gruppene i `TILGANG_SKRIV`. Populasjonstilgangen kontrolleres på samme måte. Ukjent ID gir backfill fra Spleis, som for oppslaget. Endepunktet finnes bare når `MANUELL_VURDERING_AKTIVERT=true`, som er satt i dev og ikke i prod.
+
+| Status | Betydning |
+|---|---|
+| 400 | Ugyldig UUID eller body, ukjent tilleggskategori, eller hovedkategorien er ikke `SELVSTENDIG_NAERINGSDRIVENDE` eller `ARBEIDSTAKER_OG_SELVSTENDIG_NAERINGSDRIVENDE` |
+| 401 | Tokenet mangler eller er ugyldig. Svaret har ingen body |
+| 403 | Saksbehandleren mangler skrivetilgang, eller tilgangsmaskinen avslår eller feiler |
+| 404 | Personen eller avgjørelsen finnes ikke, eller endepunktet er skrudd av |
+| 409 | Avgjørelsen er ikke lenger gjeldende for skjæringstidspunktet |
+| 503 | Spleis svarte med feil eller kunne ikke kontaktes under backfill |
+
 Bygg og kjør testene:
 
 ```shell

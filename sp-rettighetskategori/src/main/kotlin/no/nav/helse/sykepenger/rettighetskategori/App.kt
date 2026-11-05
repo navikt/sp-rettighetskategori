@@ -77,6 +77,7 @@ internal fun launchApplication(
                         backfill,
                         personProvider,
                         tilgangskontroll,
+                        manuellVurderingAktivert = env["MANUELL_VURDERING_AKTIVERT"].toBoolean(),
                     )
                     monitor.subscribe(ApplicationStopped) {
                         loggInfo("Lukker datasource")

@@ -86,6 +86,7 @@ internal fun Application.configureRestApi(
     backfill: Backfill,
     personProvider: PersonPseudoIdProvider,
     tilgangskontroll: PopulasjonstilgangskontrollProvider,
+    manuellVurderingAktivert: Boolean,
 ) {
     install(ContentNegotiation) { jackson() }
     install(StatusPages) {
@@ -97,6 +98,7 @@ internal fun Application.configureRestApi(
     routing {
         authenticate(AZURE_AD_AUTHENTICATION_NAME) {
             rettighetskategoriApi(repository, backfill, personProvider, tilgangskontroll)
+            if (manuellVurderingAktivert) manuellVurderingApi(repository, backfill, personProvider, tilgangskontroll)
         }
         authenticate(AZURE_AD_APP_AUTHENTICATION_NAME) {
             rettighetskategoriTjenesteApi(repository, backfill)
@@ -111,46 +113,55 @@ private fun Route.rettighetskategoriApi(
     tilgangskontroll: PopulasjonstilgangskontrollProvider,
 ) {
     get("/api/personer/{personPseudoId}/rettighetskategorier/{rettighetskategoriId}") {
-        val principal = call.principal<SaksbehandlerPrincipal>() ?: return@get call.respond(HttpStatusCode.Unauthorized)
-        if (!principal.harTilgang(Tilgang.Les)) {
-            logger.debug("403: saksbehandler mangler lesetilgang")
-            return@get call.respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang")
-        }
-        val pseudoId =
-            call.parameters["personPseudoId"]?.let(PersonPseudoId::fraString)
-                ?: return@get call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-        val ident =
-            personProvider.finnIdentitetsnummer(pseudoId)
-                ?: return@get call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-        val tilgang =
-            try {
-                tilgangskontroll.kontrollerKjerneTilgang(principal.accessToken.value, ident.value)
-            } catch (ex: IOException) {
-                return@get call.respondTilgangsfeil(ex)
-            } catch (ex: AccessTokenException) {
-                return@get call.respondTilgangsfeil(ex)
-            } catch (ex: JacksonException) {
-                return@get call.respondTilgangsfeil(ex)
-            } catch (ex: InterruptedException) {
-                Thread.currentThread().interrupt()
-                return@get call.respondTilgangsfeil(ex)
-            }
-        when (tilgang) {
-            TilgangskontrollResultat.Ok -> Unit
-            TilgangskontrollResultat.IdentIkkeFunnet -> return@get call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-            is TilgangskontrollResultat.ManglerTilgang -> {
-                logger.debug("403: populasjonstilgangskontrollen ga avslag", "tilgangSomMangler" to tilgang.tilgangSomMangler.name)
-                return@get call.respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang")
-            }
-            is TilgangskontrollResultat.UventetFeil -> {
-                logger.debug("403: tilgangskontrollen feilet uventet", "forklaring" to tilgang.menneskeligLesbarForklaring)
-                return@get call.respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang")
-            }
-        }
+        val fødselsnummer = call.fødselsnummerMedTilgang(Tilgang.Les, personProvider, tilgangskontroll) ?: return@get
         val id =
             rettighetskategoriId(call.parameters["rettighetskategoriId"])
                 ?: return@get call.respondProblem(HttpStatusCode.BadRequest, "Ugyldig forespørsel")
-        call.respondRettighetskategori(repository, backfill, id, ident.value)
+        call.respondRettighetskategori(repository, backfill, id, fødselsnummer)
+    }
+}
+
+/** Svarer med feil og gir `null` når saksbehandleren mangler [tilgang] eller tilgang til personen. */
+internal suspend fun ApplicationCall.fødselsnummerMedTilgang(
+    tilgang: Tilgang,
+    personProvider: PersonPseudoIdProvider,
+    tilgangskontroll: PopulasjonstilgangskontrollProvider,
+): String? {
+    val principal = principal<SaksbehandlerPrincipal>() ?: return null.also { respond(HttpStatusCode.Unauthorized) }
+    if (!principal.harTilgang(tilgang)) {
+        logger.debug("403: saksbehandler mangler tilgang", "tilgang" to tilgang.name)
+        return null.also { respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang") }
+    }
+    val pseudoId =
+        parameters["personPseudoId"]?.let(PersonPseudoId::fraString)
+            ?: return null.also { respondProblem(HttpStatusCode.NotFound, "Ikke funnet") }
+    val ident =
+        personProvider.finnIdentitetsnummer(pseudoId)
+            ?: return null.also { respondProblem(HttpStatusCode.NotFound, "Ikke funnet") }
+    val resultat =
+        try {
+            tilgangskontroll.kontrollerKjerneTilgang(principal.accessToken.value, ident.value)
+        } catch (ex: IOException) {
+            return null.also { respondTilgangsfeil(ex) }
+        } catch (ex: AccessTokenException) {
+            return null.also { respondTilgangsfeil(ex) }
+        } catch (ex: JacksonException) {
+            return null.also { respondTilgangsfeil(ex) }
+        } catch (ex: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return null.also { respondTilgangsfeil(ex) }
+        }
+    return when (resultat) {
+        TilgangskontrollResultat.Ok -> ident.value
+        TilgangskontrollResultat.IdentIkkeFunnet -> null.also { respondProblem(HttpStatusCode.NotFound, "Ikke funnet") }
+        is TilgangskontrollResultat.ManglerTilgang -> {
+            logger.debug("403: populasjonstilgangskontrollen ga avslag", "tilgangSomMangler" to resultat.tilgangSomMangler.name)
+            null.also { respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang") }
+        }
+        is TilgangskontrollResultat.UventetFeil -> {
+            logger.debug("403: tilgangskontrollen feilet uventet", "forklaring" to resultat.menneskeligLesbarForklaring)
+            null.also { respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang") }
+        }
     }
 }
 
@@ -161,25 +172,38 @@ internal fun rettighetskategoriId(rawId: String?): UUID? =
         null
     }
 
-/** Er ID-en ukjent, kjøres backfill fra Spleis for fødselsnummeret før et nytt oppslag. En avgjørelse for en annen person gir 404. */
 internal suspend fun ApplicationCall.respondRettighetskategori(
     repository: RettighetskategoriRepository,
     backfill: Backfill,
     id: UUID,
     fødselsnummer: String,
 ) {
+    val avgjørelse = finnAvgjørelse(repository, backfill, id, fødselsnummer) ?: return
+    respond(RettighetskategoriResponse.fraDomene(avgjørelse))
+}
+
+/**
+ * Er ID-en ukjent, kjøres backfill fra Spleis for fødselsnummeret før et nytt oppslag. En avgjørelse for en annen person gir 404.
+ * Svarer med feil og gir `null` når avgjørelsen ikke finnes.
+ */
+internal suspend fun ApplicationCall.finnAvgjørelse(
+    repository: RettighetskategoriRepository,
+    backfill: Backfill,
+    id: UUID,
+    fødselsnummer: String,
+): Rettighetskategori? {
     val avgjørelse =
         repository.finn(id) ?: run {
             try {
                 backfill.backfill(fødselsnummer)
             } catch (ex: SpleisClientException) {
                 logger.warn("Feil ved backfill fra Spleis", ex)
-                return respondProblem(HttpStatusCode.ServiceUnavailable, "Spleis er utilgjengelig")
+                return null.also { respondProblem(HttpStatusCode.ServiceUnavailable, "Spleis er utilgjengelig") }
             }
             repository.finn(id)
-        } ?: return respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-    if (avgjørelse.fødselsnummer != fødselsnummer) return respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-    respond(RettighetskategoriResponse.fraDomene(avgjørelse))
+        }
+    if (avgjørelse?.fødselsnummer != fødselsnummer) return null.also { respondProblem(HttpStatusCode.NotFound, "Ikke funnet") }
+    return avgjørelse
 }
 
 private suspend fun ApplicationCall.respondTilgangsfeil(ex: Exception) {

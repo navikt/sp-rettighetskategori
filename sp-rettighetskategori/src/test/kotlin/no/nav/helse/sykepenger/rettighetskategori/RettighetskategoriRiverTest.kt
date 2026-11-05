@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.CsvSource
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jacksonObjectMapper
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -326,6 +327,62 @@ internal class RettighetskategoriRiverTest {
         assertEquals("SELVSTENDIG_NÆRINGSDRIVENDE", løsning.path("hovedkategori").asString())
         assertEquals(2, lagredeRader().size)
         assertEquals(1, lagredeVurderinger().size)
+    }
+
+    @Test
+    fun `nye søknader med samme konklusjon som en manuell vurdering gir ID-en til den manuelle avgjørelsen`() {
+        val første = spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER)
+        rapid.sendTestMessage(rettighetskategoriBehov(første), FØDSELSNUMMER)
+        val manuell = vurderManuelt(idILøsning(0), setOf(Tilleggskategori.JORDBRUKER))
+        val jordbruker = spedisjon.sendtSøknad(FØDSELSNUMMER, "sendt_søknad_selvstendig", "JORDBRUKER")
+
+        rapid.sendTestMessage(rettighetskategoriBehov(første, jordbruker), FØDSELSNUMMER)
+
+        assertEquals(manuell, idILøsning(1))
+        assertEquals(2, lagredeRader().size)
+        assertEquals(manuell to listOf(første, jordbruker), lagredeVurderinger().last().let { it.rettighetskategoriId to it.søknader })
+    }
+
+    @Test
+    fun `nye søknader med en annen konklusjon enn en manuell vurdering gir ny automatisk avgjørelse`() {
+        val første = spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER)
+        rapid.sendTestMessage(rettighetskategoriBehov(første), FØDSELSNUMMER)
+        val automatisk = idILøsning(0)
+        val manuell = vurderManuelt(automatisk, setOf(Tilleggskategori.JORDBRUKER))
+        val andre = spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER)
+
+        rapid.sendTestMessage(rettighetskategoriBehov(første, andre), FØDSELSNUMMER)
+
+        val ny = idILøsning(1)
+        assertEquals(2, rapid.inspektør.size)
+        assertEquals(
+            listOf(Triple(automatisk, "automatisk", emptyList()), Triple(manuell, "saksbehandler", listOf("JORDBRUKER")), Triple(ny, "automatisk", emptyList<String>())),
+            lagredeRader().map { Triple(it.id, it.kilde, it.tilleggskategorier) },
+        )
+        assertEquals(ny, RettighetskategoriRepository(TestDatabase.dataSource).gjeldende(FØDSELSNUMMER, SKJÆRINGSTIDSPUNKT)?.id)
+    }
+
+    @Test
+    fun `samme søknadssett etter en manuell vurdering gir ID-en til den manuelle avgjørelsen`() {
+        val søknad = spedisjon.sendtSøknadSelvstendig(FØDSELSNUMMER)
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+        val manuell = vurderManuelt(idILøsning(0), setOf(Tilleggskategori.JORDBRUKER))
+
+        rapid.sendTestMessage(rettighetskategoriBehov(søknad), FØDSELSNUMMER)
+
+        assertEquals(manuell, idILøsning(1))
+        assertEquals(2, lagredeRader().size)
+        assertEquals(1, lagredeVurderinger().size)
+    }
+
+    private fun vurderManuelt(
+        erstatter: UUID,
+        tilleggskategorier: Set<Tilleggskategori>,
+    ): UUID {
+        val repository = RettighetskategoriRepository(TestDatabase.dataSource)
+        val ny = checkNotNull(repository.finn(erstatter)).manueltVurdert(tilleggskategorier, Instant.now())
+        check(repository.lagreManuellVurdering(ny, ManuellVurdering("Z999999", null, erstatter)))
+        return ny.id
     }
 
     @Test

@@ -65,6 +65,12 @@ internal data class Vurdering(
     val vurderingstidspunkt: Instant,
 )
 
+internal data class ManuellVurdering(
+    val saksbehandlerIdent: String,
+    val begrunnelse: String?,
+    val erstatter: UUID,
+)
+
 internal data class Rettighetskategori(
     val id: UUID,
     val fødselsnummer: String,
@@ -73,7 +79,25 @@ internal data class Rettighetskategori(
     val kilde: Kilde,
     val vurderingstidspunkt: Instant,
 ) {
+    val kanHaTilleggskategorier get() = konklusjon.hovedkategori in hovedkategorierMedTilleggskategorier
+
+    fun manueltVurdert(
+        tilleggskategorier: Set<Tilleggskategori>,
+        vurderingstidspunkt: Instant,
+    ): Rettighetskategori {
+        check(kanHaTilleggskategorier) { "Hovedkategorien ${konklusjon.hovedkategori} kan ikke ha tilleggskategorier" }
+        return copy(
+            id = UUID.randomUUID(),
+            konklusjon = konklusjon.copy(tilleggskategorier = tilleggskategorier),
+            kilde = Kilde.SAKSBEHANDLER,
+            vurderingstidspunkt = vurderingstidspunkt,
+        )
+    }
+
     companion object {
+        private val hovedkategorierMedTilleggskategorier =
+            setOf(Hovedkategori.SELVSTENDIG_NÆRINGSDRIVENDE, Hovedkategori.ARBEIDSTAKER_OG_SELVSTENDIG_NÆRINGSDRIVENDE)
+
         fun automatisk(
             fødselsnummer: String,
             skjæringstidspunkt: LocalDate,
