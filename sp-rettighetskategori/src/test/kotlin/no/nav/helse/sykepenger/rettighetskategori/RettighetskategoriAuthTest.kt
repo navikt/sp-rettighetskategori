@@ -14,6 +14,7 @@ import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
 import no.nav.security.mock.oauth2.MockOAuth2Server
 import no.nav.sykepenger.libs.ktor.auth.AzureAdConfig
 import no.nav.sykepenger.libs.ktor.auth.TilgangsgrupperTilTilganger
+import no.nav.sykepenger.libs.ktor.auth.configureAppAuthentication
 import no.nav.sykepenger.libs.ktor.auth.configureJwtAuthentication
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -100,12 +101,14 @@ internal class RettighetskategoriAuthTest {
         val repository = RettighetskategoriRepository(TestDatabase.dataSource)
         repository.lagre(Rettighetskategori.fraSpleis(id, fødselsnummer, LocalDate.parse("2026-01-01"), Hovedkategori.ARBEIDSTAKER, Instant.now()))
         application {
+            val azureAdConfig = AzureAdConfig("sp-rettighetskategori", oauth.issuerUrl("azure").toString(), oauth.jwksUrl("azure").toString())
             configureJwtAuthentication(
-                AzureAdConfig("sp-rettighetskategori", oauth.issuerUrl("azure").toString(), oauth.jwksUrl("azure").toString()),
+                azureAdConfig,
                 TilgangsgrupperTilTilganger.fraEnv(
                     mapOf("TILGANG_LES" to "annen-lesegruppe, les ", "TILGANG_SKRIV" to "annen-skrivegruppe, skriv "),
                 ),
             )
+            configureAppAuthentication(azureAdConfig)
             configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll)
         }
         val token =

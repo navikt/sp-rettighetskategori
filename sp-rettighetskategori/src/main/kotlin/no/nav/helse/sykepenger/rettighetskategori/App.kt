@@ -17,6 +17,7 @@ import no.nav.helse.rapids_rivers.RapidApplication
 import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
 import no.nav.sykepenger.libs.ktor.auth.AzureAdConfig
 import no.nav.sykepenger.libs.ktor.auth.TilgangsgrupperTilTilganger
+import no.nav.sykepenger.libs.ktor.auth.configureAppAuthentication
 import no.nav.sykepenger.libs.ktor.auth.configureJwtAuthentication
 import no.nav.sykepenger.libs.logging.loggInfo
 import no.nav.sykepenger.libs.logging.navngittLogger
@@ -70,6 +71,7 @@ internal fun launchApplication(
                 env["HTTP_PORT"]?.toInt()?.let(::withHttpPort)
                 withKtorModule {
                     configureJwtAuthentication(AzureAdConfig.fraEnv(env), TilgangsgrupperTilTilganger.fraEnv(env))
+                    configureAppAuthentication(AzureAdConfig.fraEnv(env))
                     configureRestApi(
                         repository,
                         backfill,

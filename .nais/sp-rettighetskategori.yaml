@@ -59,6 +59,7 @@ spec:
     inbound:
       rules:
         - application: speil
+        - application: sp-forsikring
     outbound:
       rules:
         - application: logging

@@ -35,6 +35,23 @@ Feilsvar unntatt 401 har typen `application/problem+json`. Årsaken til en 403 l
 
 API-et bruker vanlige Ktor-ruter, uten et eget REST-rammeverk, OpenAPI eller Swagger UI.
 
+## Oppslag fra tjenester
+
+`POST /api/rettighetskategorier/{rettighetskategoriId}` henter én avgjørelse for en annen tjeneste, uten saksbehandler. Bodyen er `{ "fødselsnummer": "<11 sifre>" }`. Svaret har de samme feltene som oppslaget fra Speil, og heller ikke her fødselsnummer.
+
+Kallet krever et maskin-til-maskin-token fra Azure AD (client credentials) med appen som audience og `idtyp=app`. Tokener på vegne av en saksbehandler avvises, og maskin-til-maskin-tokener avvises på endepunktet for Speil. `inbound` i Nais styrer hvilke apper som får token. Der står `speil` og `sp-forsikring`, og sp-forsikring er den eneste tjenesten som skal bruke dette endepunktet. Det er ingen populasjonstilgangskontroll, fordi ingen saksbehandler er med i kallet.
+
+Ukjent ID utløser backfill fra Spleis for fødselsnummeret og et nytt oppslag, som for Speil. En ID for en annen person gir 404 uten backfill.
+
+| Status | Betydning |
+|---|---|
+| 400 | Rettighetskategori-ID-en er ikke en gyldig UUID, eller bodyen mangler et gyldig fødselsnummer |
+| 401 | Tokenet mangler, er ugyldig eller er ikke et maskin-til-maskin-token. Svaret har ingen body |
+| 404 | Avgjørelsen finnes ikke etter backfill, eller hører til et annet fødselsnummer |
+| 503 | Spleis svarte med feil eller kunne ikke kontaktes under backfill |
+
+Feilsvar unntatt 401 har typen `application/problem+json`.
+
 Bygg og kjør testene:
 
 ```shell

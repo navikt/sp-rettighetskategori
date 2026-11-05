@@ -25,6 +25,7 @@ import no.nav.helse.sykepenger.rettighetskategori.Rettighetskategori
 import no.nav.helse.sykepenger.rettighetskategori.RettighetskategoriRepository
 import no.nav.helse.sykepenger.rettighetskategori.SpleisClientException
 import no.nav.helse.sykepenger.rettighetskategori.Tilleggskategori
+import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_APP_AUTHENTICATION_NAME
 import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_AUTHENTICATION_NAME
 import no.nav.sykepenger.libs.ktor.auth.SaksbehandlerPrincipal
 import no.nav.sykepenger.libs.ktor.auth.Tilgang
@@ -97,6 +98,9 @@ internal fun Application.configureRestApi(
         authenticate(AZURE_AD_AUTHENTICATION_NAME) {
             rettighetskategoriApi(repository, backfill, personProvider, tilgangskontroll)
         }
+        authenticate(AZURE_AD_APP_AUTHENTICATION_NAME) {
+            rettighetskategoriTjenesteApi(repository, backfill)
+        }
     }
 }
 
@@ -143,26 +147,39 @@ private fun Route.rettighetskategoriApi(
                 return@get call.respondProblem(HttpStatusCode.Forbidden, "Mangler tilgang")
             }
         }
-        val rawId = call.parameters["rettighetskategoriId"]
         val id =
-            try {
-                UUID.fromString(rawId).also { require(it.toString().equals(rawId, ignoreCase = true)) }
-            } catch (_: IllegalArgumentException) {
-                return@get call.respondProblem(HttpStatusCode.BadRequest, "Ugyldig forespørsel")
-            }
-        val avgjørelse =
-            repository.finn(id) ?: run {
-                try {
-                    backfill.backfill(ident.value)
-                } catch (ex: SpleisClientException) {
-                    logger.warn("Feil ved backfill fra Spleis", ex)
-                    return@get call.respondProblem(HttpStatusCode.ServiceUnavailable, "Spleis er utilgjengelig")
-                }
-                repository.finn(id)
-            } ?: return@get call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-        if (avgjørelse.fødselsnummer != ident.value) return@get call.respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
-        call.respond(RettighetskategoriResponse.fraDomene(avgjørelse))
+            rettighetskategoriId(call.parameters["rettighetskategoriId"])
+                ?: return@get call.respondProblem(HttpStatusCode.BadRequest, "Ugyldig forespørsel")
+        call.respondRettighetskategori(repository, backfill, id, ident.value)
     }
+}
+
+internal fun rettighetskategoriId(rawId: String?): UUID? =
+    try {
+        UUID.fromString(rawId).takeIf { it.toString().equals(rawId, ignoreCase = true) }
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
+/** Er ID-en ukjent, kjøres backfill fra Spleis for fødselsnummeret før et nytt oppslag. En avgjørelse for en annen person gir 404. */
+internal suspend fun ApplicationCall.respondRettighetskategori(
+    repository: RettighetskategoriRepository,
+    backfill: Backfill,
+    id: UUID,
+    fødselsnummer: String,
+) {
+    val avgjørelse =
+        repository.finn(id) ?: run {
+            try {
+                backfill.backfill(fødselsnummer)
+            } catch (ex: SpleisClientException) {
+                logger.warn("Feil ved backfill fra Spleis", ex)
+                return respondProblem(HttpStatusCode.ServiceUnavailable, "Spleis er utilgjengelig")
+            }
+            repository.finn(id)
+        } ?: return respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
+    if (avgjørelse.fødselsnummer != fødselsnummer) return respondProblem(HttpStatusCode.NotFound, "Ikke funnet")
+    respond(RettighetskategoriResponse.fraDomene(avgjørelse))
 }
 
 private suspend fun ApplicationCall.respondTilgangsfeil(ex: Exception) {

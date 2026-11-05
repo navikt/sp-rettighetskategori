@@ -14,6 +14,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.testing.testApplication
 import no.nav.helse.sykepenger.rettighetskategori.rest.configureRestApi
+import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_APP_AUTHENTICATION_NAME
 import no.nav.sykepenger.libs.ktor.auth.AZURE_AD_AUTHENTICATION_NAME
 import no.nav.sykepenger.libs.ktor.auth.AccessToken
 import no.nav.sykepenger.libs.ktor.auth.NavIdent
@@ -79,6 +80,9 @@ internal class RettighetskategoriApiTest {
         install(Authentication) {
             provider(AZURE_AD_AUTHENTICATION_NAME) {
                 authenticate { context -> context.principal(saksbehandlerPrincipal()) }
+            }
+            provider(AZURE_AD_APP_AUTHENTICATION_NAME) {
+                authenticate { error("Endepunktet for tjenester testes i RettighetskategoriTjenesteApiTest") }
             }
         }
         configureRestApi(repository, Backfill(spleis.client, repository), personProvider, tilgangskontroll)
