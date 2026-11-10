@@ -12,7 +12,7 @@ hikaricp = "com.zaxxer:HikariCP:7.1.0"
 cloud-sql-postgres-socket-factory = "com.google.cloud.sql:postgres-socket-factory:1.30.2"
 kotliquery = "com.github.seratch:kotliquery:1.9.1"
 postgresql = "org.postgresql:postgresql:42.7.14"
-rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026091610031789545782"
+rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026110308421793691732"
 sykepengerLibs-ktor-auth = { module = "no.nav.sykepenger.libs:ktor-auth", version.ref = "sykepenger-libs" }
 sykepengerLibs-logging = { module = "no.nav.sykepenger.libs:logging", version.ref = "sykepenger-libs" }
 sykepengerLibs-postgres = { module = "no.nav.sykepenger.libs:postgres", version.ref = "sykepenger-libs" }
