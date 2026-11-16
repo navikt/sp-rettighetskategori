@@ -17,6 +17,6 @@ dependencies {
 
     testImplementation(project(":migreringer"))
     testImplementation(libs.tbd.libs.rapids.and.rivers.test)
-    testImplementation(libs.testcontainers.postgres)
+    testImplementation(testFixtures(libs.sykepengerLibs.postgres))
     testImplementation(libs.flyway.database.postgresql)
 }

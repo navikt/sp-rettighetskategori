@@ -5,11 +5,10 @@ import com.github.navikt.tbd_libs.rapids_and_rivers.JsonMessage
 import com.sun.net.httpserver.HttpServer
 import kotliquery.queryOf
 import kotliquery.sessionOf
+import no.nav.sykepenger.libs.kafka.test.TestKafka
 import no.nav.sykepenger.libs.outbox.Outbox
 import org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG
 import org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG
-import org.apache.kafka.clients.admin.AdminClient
-import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.kafka.KafkaContainer
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.URI
@@ -49,7 +47,7 @@ import no.nav.sykepenger.libs.postgres.TestDatabase as PostgresTestDatabase
 internal class AppTest {
     private val rapidTopic = "tbd.rapid.v1"
     private val testDatabase = PostgresTestDatabase.start()
-    private val kafka = KafkaContainer("apache/kafka-native:3.9.1").also { it.start() }
+    private val kafka = TestKafka.start()
     private val kafkaConfig = TestKafkaConfig(kafka.bootstrapServers)
     private val electorMessages = LinkedBlockingQueue<String>()
     private val electorRunning = AtomicBoolean(true)
@@ -83,9 +81,7 @@ internal class AppTest {
     @BeforeAll
     fun startApplikasjonen() {
         electorMessages.add("another-pod")
-        AdminClient.create(kafkaConfig.adminConfig(Properties())).use {
-            it.createTopics(listOf(NewTopic(rapidTopic, 1, 1))).all().get()
-        }
+        kafka.opprettTopics(rapidTopic)
         thread(name = "applikasjon", isDaemon = true) {
             launchApplication(
                 env =

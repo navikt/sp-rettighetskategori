@@ -1,21 +1,13 @@
 package no.nav.helse.sykepenger.rettighetskategori.opprydding_dev
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
+import no.nav.sykepenger.libs.postgres.TestDatabase
 import org.flywaydb.core.Flyway
-import org.testcontainers.postgresql.PostgreSQLContainer
+import javax.sql.DataSource
 
 object Database {
-    private val postgresContainer = PostgreSQLContainer("postgres:18").also { it.start() }
+    private val testDatabase = TestDatabase.start(postgresImage = "postgres:18")
 
-    val dataSource: HikariDataSource =
-        HikariDataSource(
-            HikariConfig().apply {
-                jdbcUrl = postgresContainer.jdbcUrl
-                username = postgresContainer.username
-                password = postgresContainer.password
-            },
-        )
+    val dataSource: DataSource = testDatabase.dataSource
 
     private val flyway =
         Flyway
@@ -31,6 +23,6 @@ object Database {
     }
 
     fun shutdown() {
-        dataSource.close()
+        testDatabase.stop()
     }
 }

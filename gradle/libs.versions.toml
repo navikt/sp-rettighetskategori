@@ -2,9 +2,13 @@
 flyway = "13.12.1"
 tbd-libs = "20261029.1843"
 sykepengerGradlePlugins = "20261029.1945"
-testcontainers = "2.0.5"
 ktor = "3.6.1"
-sykepenger-libs = "20261106.1049"
+sykepenger-libs-kafka-test = "20261116.0849"
+sykepenger-libs-ktor-auth = "20261116.0849"
+sykepenger-libs-leader-election = "20261116.0849"
+sykepenger-libs-logging = "20261116.0849"
+sykepenger-libs-outbox = "20261116.0849"
+sykepenger-libs-postgres = "20261116.0849"
 
 [libraries]
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
@@ -13,11 +17,12 @@ cloud-sql-postgres-socket-factory = "com.google.cloud.sql:postgres-socket-factor
 kotliquery = "com.github.seratch:kotliquery:1.9.1"
 postgresql = "org.postgresql:postgresql:42.7.14"
 rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026110308421793691732"
-sykepengerLibs-ktor-auth = { module = "no.nav.sykepenger.libs:ktor-auth", version.ref = "sykepenger-libs" }
-sykepengerLibs-logging = { module = "no.nav.sykepenger.libs:logging", version.ref = "sykepenger-libs" }
-sykepengerLibs-postgres = { module = "no.nav.sykepenger.libs:postgres", version.ref = "sykepenger-libs" }
-sykepengerLibs-leader-election = { module = "no.nav.sykepenger.libs:leader-election", version.ref = "sykepenger-libs" }
-sykepengerLibs-outbox = { module = "no.nav.sykepenger.libs:outbox", version.ref = "sykepenger-libs" }
+sykepengerLibs-ktor-auth = { module = "no.nav.sykepenger.libs:ktor-auth", version.ref = "sykepenger-libs-ktor-auth" }
+sykepengerLibs-logging = { module = "no.nav.sykepenger.libs:logging", version.ref = "sykepenger-libs-logging" }
+sykepengerLibs-kafka-test = { module = "no.nav.sykepenger.libs:kafka-test", version.ref = "sykepenger-libs-kafka-test" }
+sykepengerLibs-postgres = { module = "no.nav.sykepenger.libs:postgres", version.ref = "sykepenger-libs-postgres" }
+sykepengerLibs-leader-election = { module = "no.nav.sykepenger.libs:leader-election", version.ref = "sykepenger-libs-leader-election" }
+sykepengerLibs-outbox = { module = "no.nav.sykepenger.libs:outbox", version.ref = "sykepenger-libs-outbox" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
 ktor-serialization-jackson3 = { module = "io.ktor:ktor-serialization-jackson3", version.ref = "ktor" }
@@ -32,8 +37,6 @@ tbd-libs-azure-token-client-default = { module = "com.github.navikt.tbd-libs:azu
 tbd-libs-mock-http-client = { module = "com.github.navikt.tbd-libs:mock-http-client", version.ref = "tbd-libs" }
 tbd-libs-rapids-and-rivers-test = { module = "com.github.navikt.tbd-libs:rapids-and-rivers-test", version.ref = "tbd-libs" }
 tbd-libs-spedisjon-client = { module = "com.github.navikt.tbd-libs:spedisjon-client", version.ref = "tbd-libs" }
-testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
-testcontainers-postgres = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 
 [plugins]
 sykepenger-deployable = { id = "no.nav.sykepenger.deployable", version.ref = "sykepengerGradlePlugins" }

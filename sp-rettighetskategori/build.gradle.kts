@@ -28,7 +28,7 @@ dependencies {
 
     testImplementation(libs.tbd.libs.mock.http.client)
     testImplementation(libs.tbd.libs.rapids.and.rivers.test)
-    testImplementation(libs.testcontainers.kafka)
+    testImplementation(libs.sykepengerLibs.kafka.test)
     testImplementation(testFixtures(libs.sykepengerLibs.postgres))
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.mock.oauth2.server)
