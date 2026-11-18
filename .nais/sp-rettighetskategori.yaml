@@ -62,6 +62,7 @@ spec:
         - application: speil
         - application: sp-forsikring
         - application: sp-vilkarsproving
+        - application: sp-sykepengegrunnlag
     outbound:
       rules:
         - application: logging
