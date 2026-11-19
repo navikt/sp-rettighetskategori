@@ -1,5 +1,5 @@
 [versions]
-flyway = "13.12.1"
+flyway = "13.12.2"
 tbd-libs = "20261029.1843"
 sykepengerGradlePlugins = "20261029.1945"
 ktor = "3.6.1"
