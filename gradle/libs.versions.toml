@@ -1,6 +1,6 @@
 [versions]
 flyway = "13.12.2"
-tbd-libs = "20261123.1112"
+tbd-libs = "20261125.1015"
 sykepengerGradlePlugins = "20261029.1945"
 ktor = "3.6.1"
 sykepenger-libs-kafka-test = "20261120.1340"
