@@ -1,5 +1,5 @@
 [versions]
-flyway = "13.12.2"
+flyway = "13.13.0"
 tbd-libs = "20261125.1015"
 sykepengerGradlePlugins = "20261029.1945"
 ktor = "3.6.1"
@@ -16,7 +16,7 @@ hikaricp = "com.zaxxer:HikariCP:7.1.0"
 cloud-sql-postgres-socket-factory = "com.google.cloud.sql:postgres-socket-factory:1.31.0"
 kotliquery = "com.github.seratch:kotliquery:1.9.1"
 postgresql = "org.postgresql:postgresql:42.7.14"
-rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026110308421793691732"
+rapids-and-rivers = "com.github.navikt:rapids-and-rivers:2026111908531795074794"
 sykepengerLibs-ktor-auth = { module = "no.nav.sykepenger.libs:ktor-auth", version.ref = "sykepenger-libs-ktor-auth" }
 sykepengerLibs-logging = { module = "no.nav.sykepenger.libs:logging", version.ref = "sykepenger-libs-logging" }
 sykepengerLibs-kafka-test = { module = "no.nav.sykepenger.libs:kafka-test", version.ref = "sykepenger-libs-kafka-test" }
